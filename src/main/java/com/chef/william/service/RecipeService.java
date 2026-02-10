@@ -5,10 +5,12 @@ import com.chef.william.dto.RecipeDTO;
 import com.chef.william.dto.RecipeIngredientDTO;
 import com.chef.william.exception.BusinessException;
 import com.chef.william.exception.ResourceNotFoundException;
+import com.chef.william.model.Food;
 import com.chef.william.model.Ingredient;
 import com.chef.william.model.Instruction;
 import com.chef.william.model.Recipe;
 import com.chef.william.model.RecipeIngredient;
+import com.chef.william.repository.FoodRepository;
 import com.chef.william.repository.IngredientRepository;
 import com.chef.william.repository.RecipeRepository;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +26,7 @@ public class RecipeService {
 
     private final RecipeRepository recipeRepository;
     private final IngredientRepository ingredientRepository;
+    private final FoodRepository foodRepository;
 
     @Transactional
     public RecipeDTO createRecipe(RecipeDTO recipeDTO) {
@@ -72,6 +75,14 @@ public class RecipeService {
     private void populateScalars(Recipe recipe, RecipeDTO dto) {
         recipe.setTitle(dto.getTitle());
         recipe.setDescription(dto.getDescription());
+
+        if (dto.getFoodId() != null) {
+            Food food = foodRepository.findById(dto.getFoodId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Food not found with id: " + dto.getFoodId()));
+            recipe.setFood(food);
+        } else {
+            recipe.setFood(null);
+        }
     }
 
     private void mergeIngredients(Recipe recipe, RecipeDTO dto) {
@@ -158,6 +169,8 @@ public class RecipeService {
                 .id(recipe.getId())
                 .title(recipe.getTitle())
                 .description(recipe.getDescription())
+                .foodId(recipe.getFood() != null ? recipe.getFood().getId() : null)
+                .foodName(recipe.getFood() != null ? recipe.getFood().getName() : null)
                 .build();
 
         List<RecipeIngredientDTO> ingredientDTOs = recipe.getRecipeIngredients().stream()
