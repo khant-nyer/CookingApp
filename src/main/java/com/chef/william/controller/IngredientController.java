@@ -95,7 +95,7 @@ public class IngredientController {
         return discoverSupermarketsInternal(ingredientName, city, userId);
     }
 
-    @GetMapping({"/discover-supermarkets", "/discover-supermarkets/", "discover-supermarkets"})
+    @GetMapping({"/discover-supermarkets", "/discover-supermarkets/"})
     public ResponseEntity<List<SupermarketDiscoveryDTO>> discoverSupermarkets(
             @RequestParam(name = "ingredientName") String ingredientName,
             @RequestParam(name = "city", required = false) String city,
