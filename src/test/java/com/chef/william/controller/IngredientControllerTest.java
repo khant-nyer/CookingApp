@@ -60,4 +60,26 @@ class IngredientControllerTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk());
     }
+
+    @Test
+    void discoverSupermarketsPathVariantShouldSupportEncodedIngredientName() throws Exception {
+        when(ingredientService.discoverPopularSupermarkets(null, "Bangkok", "Soy Sauce"))
+                .thenReturn(List.of(new SupermarketDiscoveryDTO(
+                        "Bangkok",
+                        "Lotus",
+                        "https://lotus.example",
+                        "https://lotus.example/search?q=soy+sauce",
+                        true,
+                        "OFFICIAL_WEB_CRAWL",
+                        LocalDateTime.now()
+                )));
+
+        mockMvc.perform(get("/api/ingredients/Soy%20Sauce/discover-supermarkets")
+                        .param("city", "Bangkok")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].supermarketName").value("Lotus"));
+    }
+
+
 }
