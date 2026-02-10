@@ -1,5 +1,7 @@
 package com.chef.william.model.enums;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
 import lombok.Getter;
 
 import java.util.Arrays;
@@ -33,11 +35,31 @@ public enum Unit {
             return null;
         }
 
+        String normalized = value.trim();
+
+        if (normalized.equalsIgnoreCase("STK")) {
+            return PIECE;
+        }
+
         return Arrays.stream(values())
-                .filter(unit -> unit.abbreviation.equalsIgnoreCase(value)
-                        || unit.name().equalsIgnoreCase(value))
+                .filter(unit -> unit.abbreviation.equalsIgnoreCase(normalized)
+                        || unit.name().equalsIgnoreCase(normalized))
                 .findFirst()
                 .orElse(null);
+    }
+
+    @JsonCreator
+    public static Unit fromJson(String value) {
+        Unit unit = fromAbbreviation(value);
+        if (unit == null) {
+            throw new IllegalArgumentException("Unknown unit: " + value);
+        }
+        return unit;
+    }
+
+    @JsonValue
+    public String toJson() {
+        return this.name();
     }
 
 }
