@@ -2,6 +2,8 @@ package com.chef.william.model.enums;
 
 import lombok.Getter;
 
+import java.util.Arrays;
+
 @Getter
 public enum Unit {
     G("g"),
@@ -24,6 +26,18 @@ public enum Unit {
 
     Unit(String abbreviation) {
         this.abbreviation = abbreviation;
+    }
+
+    public static Unit fromAbbreviation(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        return Arrays.stream(values())
+                .filter(unit -> unit.abbreviation.equalsIgnoreCase(value)
+                        || unit.name().equalsIgnoreCase(value))
+                .findFirst()
+                .orElse(null);
     }
 
 }
