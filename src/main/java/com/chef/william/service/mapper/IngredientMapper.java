@@ -123,17 +123,18 @@ public class IngredientMapper {
         return new IngredientStoreListingDTO(
                 listing.getId(),
                 listing.getStoreName(),
+                listing.getStoreName(),
                 listing.getStoreAddress(),
-                listing.getDistanceKm(),
+                listing.getStorePlaceId(),
+                listing.getLatitude(),
+                listing.getLongitude(),
                 listing.getPrice(),
                 listing.getCurrency(),
                 listing.getInStock(),
+                listing.getDistanceKm(),
+                listing.getSourceProvider(),
                 listing.getCapturedAt(),
-                listing.getExpiresAt(),
-                listing.getSourceType(),
-                listing.getProductUrl(),
-                listing.getExternalListingId(),
-                listing.getNotes()
+                listing.getExpiresAt()
         );
     }
 }
