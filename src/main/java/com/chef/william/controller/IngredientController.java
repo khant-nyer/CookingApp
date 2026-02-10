@@ -27,14 +27,14 @@ public class IngredientController {
     }
 
     // READ: GET /api/ingredients/{id}
-    @GetMapping("/{id}")
+    @GetMapping("/{id:\d+}")
     public ResponseEntity<IngredientDTO> getIngredientById(@PathVariable Long id) {
         IngredientDTO dto = ingredientService.getIngredientById(id);
         return ResponseEntity.ok(dto);
     }
 
 
-    @GetMapping("/{id}/store-locations")
+    @GetMapping("/{id:\d+}/store-locations")
     public ResponseEntity<List<IngredientStoreListingDTO>> getIngredientStoreLocations(@PathVariable Long id) {
         List<IngredientStoreListingDTO> locations = ingredientService.getIngredientStoreLocations(id);
         return ResponseEntity.ok(locations);
@@ -48,7 +48,7 @@ public class IngredientController {
     }
 
     // UPDATE: PUT /api/ingredients/{id}
-    @PutMapping("/{id}")
+    @PutMapping("/{id:\d+}")
     public ResponseEntity<IngredientDTO> updateIngredient(
             @PathVariable Long id,
             @Valid @RequestBody IngredientDTO dto) {
@@ -57,14 +57,14 @@ public class IngredientController {
     }
 
     // DELETE: DELETE /api/ingredients/{id}
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/{id:\d+}")
     public ResponseEntity<Void> deleteIngredient(@PathVariable Long id) {
         ingredientService.deleteIngredient(id);
         return ResponseEntity.noContent().build();  // 204 No Content on success
     }
 
 
-    @GetMapping("/discover-supermarkets")
+    @GetMapping({"/discover-supermarkets", "/discover-supermarkets/", "discover-supermarkets"})
     public ResponseEntity<List<SupermarketDiscoveryDTO>> discoverSupermarkets(
             @RequestParam(name = "ingredientName") String ingredientName,
             @RequestParam(name = "city", required = false) String city,
