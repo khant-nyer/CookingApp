@@ -2,28 +2,47 @@ package com.chef.william.service;
 
 import com.chef.william.dto.IngredientDTO;
 import com.chef.william.dto.NutritionDTO;
+import com.chef.william.dto.SupermarketDiscoveryDTO;
+import com.chef.william.dto.IngredientStoreListingDTO;
 import com.chef.william.exception.ResourceNotFoundException;
 import com.chef.william.exception.BusinessException;
+import com.chef.william.model.CitySupermarket;
 import com.chef.william.model.Ingredient;
+import com.chef.william.model.IngredientStoreListing;
 import com.chef.william.model.enums.Nutrients;
 import com.chef.william.model.Nutrition;
 import com.chef.william.model.enums.Unit;
+import com.chef.william.model.User;
+import com.chef.william.repository.CitySupermarketRepository;
 import com.chef.william.repository.IngredientRepository;
+import com.chef.william.repository.IngredientStoreListingRepository;
+import com.chef.william.repository.UserRepository;
+import com.chef.william.service.crawler.SupermarketCrawlerClient;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
 public class IngredientService {
 
     private final IngredientRepository ingredientRepository;
+    private final IngredientStoreListingRepository ingredientStoreListingRepository;
+    private final CitySupermarketRepository citySupermarketRepository;
+    private final UserRepository userRepository;
+    private final SupermarketCrawlerClient supermarketCrawlerClient;
 
     @Transactional
     public IngredientDTO createIngredient(IngredientDTO dto) {
@@ -124,7 +143,12 @@ public class IngredientService {
         dto.setCategory(entity.getCategory());
         dto.setDescription(entity.getDescription());
         dto.setServingAmount(entity.getServingAmount());
-        dto.setServingUnit(Unit.valueOf(entity.getServingUnit().toUpperCase())); // Adjust if needed
+        Unit servingUnit = Unit.fromAbbreviation(entity.getServingUnit());
+        if (servingUnit == null) {
+            throw new BusinessException("Unsupported serving unit stored for ingredient id " + entity.getId() +
+                    ": " + entity.getServingUnit());
+        }
+        dto.setServingUnit(servingUnit);
 
         dto.setNutrients(entity.getNutritionList().stream()
                 .map(n -> {
@@ -137,7 +161,190 @@ public class IngredientService {
                 })
                 .collect(Collectors.toList()));
 
+        dto.setNearbyStoreListings(entity.getStoreListings().stream()
+                .map(this::mapStoreListingToDto)
+                .sorted((left, right) -> {
+                    if (left.getDistanceKm() == null && right.getDistanceKm() == null) {
+                        return 0;
+                    }
+                    if (left.getDistanceKm() == null) {
+                        return 1;
+                    }
+                    if (right.getDistanceKm() == null) {
+                        return -1;
+                    }
+                    return left.getDistanceKm().compareTo(right.getDistanceKm());
+                })
+                .collect(Collectors.toList()));
+
         return dto;
+    }
+
+    private IngredientStoreListingDTO mapStoreListingToDto(IngredientStoreListing listing) {
+        return new IngredientStoreListingDTO(
+                listing.getId(),
+                listing.getStoreName(),
+                listing.getStoreAddress(),
+                listing.getStorePlaceId(),
+                listing.getLatitude(),
+                listing.getLongitude(),
+                listing.getPrice(),
+                listing.getCurrency(),
+                listing.getInStock(),
+                listing.getDistanceKm(),
+                listing.getSourceProvider(),
+                listing.getCapturedAt(),
+                listing.getExpiresAt()
+        );
+    }
+
+
+    @Transactional(readOnly = true)
+    public List<IngredientStoreListingDTO> getIngredientStoreLocations(Long ingredientId) {
+        if (!ingredientRepository.existsById(ingredientId)) {
+            throw new ResourceNotFoundException("Ingredient not found with id: " + ingredientId);
+        }
+
+        return ingredientStoreListingRepository
+                .findActiveListingsByIngredientId(ingredientId, LocalDateTime.now())
+                .stream()
+                .map(this::mapStoreListingToDto)
+                .sorted((left, right) -> {
+                    if (left.getDistanceKm() == null && right.getDistanceKm() == null) {
+                        return 0;
+                    }
+                    if (left.getDistanceKm() == null) {
+                        return 1;
+                    }
+                    if (right.getDistanceKm() == null) {
+                        return -1;
+                    }
+                    return left.getDistanceKm().compareTo(right.getDistanceKm());
+                })
+                .toList();
+    }
+
+    @Transactional
+    public List<SupermarketDiscoveryDTO> discoverPopularSupermarkets(Long userId, String city, String ingredientName) {
+        if (ingredientName == null || ingredientName.trim().isEmpty()) {
+            throw new BusinessException("Ingredient name is required for supermarket discovery");
+        }
+
+        String effectiveCity = resolveCity(userId, city);
+        List<CitySupermarket> persistedMarkets = citySupermarketRepository.findByCityIgnoreCase(effectiveCity.trim());
+
+        List<CitySupermarket> discoveryMarkets = persistedMarkets.isEmpty()
+                ? getFallbackCitySupermarkets(effectiveCity)
+                : persistedMarkets;
+
+        List<SupermarketDiscoveryDTO> results = new ArrayList<>();
+        List<CitySupermarket> matchedFromFallback = new ArrayList<>();
+
+        for (CitySupermarket market : discoveryMarkets) {
+            String searchUrl = buildCatalogUrl(market.getCatalogSearchUrl(), ingredientName);
+            String crawlTarget = !searchUrl.isBlank() ? searchUrl : market.getOfficialWebsite();
+            boolean matched = supermarketCrawlerClient.webpageContainsIngredient(crawlTarget, ingredientName);
+
+            results.add(new SupermarketDiscoveryDTO(
+                    effectiveCity,
+                    market.getSupermarketName(),
+                    market.getOfficialWebsite(),
+                    crawlTarget,
+                    matched,
+                    matched ? "OFFICIAL_WEB_CRAWL" : "NO_MATCH_ON_CRAWL",
+                    LocalDateTime.now()
+            ));
+
+            if (persistedMarkets.isEmpty() && matched) {
+                matchedFromFallback.add(market);
+            }
+        }
+
+        if (!matchedFromFallback.isEmpty()) {
+            saveDiscoveredSupermarkets(effectiveCity, matchedFromFallback);
+        }
+
+        return results;
+    }
+
+    private void saveDiscoveredSupermarkets(String city, List<CitySupermarket> markets) {
+        List<CitySupermarket> toSave = markets.stream()
+                .filter(market -> !citySupermarketRepository
+                        .existsByCityIgnoreCaseAndSupermarketNameIgnoreCase(city, market.getSupermarketName()))
+                .peek(market -> market.setId(null))
+                .peek(market -> market.setCity(city))
+                .toList();
+
+        if (!toSave.isEmpty()) {
+            citySupermarketRepository.saveAll(toSave);
+        }
+    }
+
+    private List<CitySupermarket> getFallbackCitySupermarkets(String city) {
+        if (city == null) {
+            return List.of();
+        }
+
+        String normalizedCity = city.trim().toLowerCase(Locale.ROOT);
+        if (!"bangkok".equals(normalizedCity)) {
+            return List.of();
+        }
+
+        return Stream.of(
+                        fallbackSupermarket("Big C", "https://www.bigc.co.th",
+                                "https://www.bigc.co.th/product/golden-mountain-seasoning-sauce-oyster-sauce-double-pack-1-l-660-ml.79188"),
+                        fallbackSupermarket("Lotus's", "https://www.lotuss.com",
+                                "https://www.lotuss.com/th/search/{ingredient}"),
+                        fallbackSupermarket("Tops", "https://www.tops.co.th",
+                                "https://www.tops.co.th/en/search?query={ingredient}")
+                )
+                .peek(market -> market.setCity(city.trim()))
+                .toList();
+    }
+
+    private CitySupermarket fallbackSupermarket(String name, String website, String catalogUrl) {
+        CitySupermarket market = new CitySupermarket();
+        market.setSupermarketName(name);
+        market.setOfficialWebsite(website);
+        market.setCatalogSearchUrl(catalogUrl);
+        market.setNotes("Fallback popular supermarket seed");
+        return market;
+    }
+
+    private String resolveCity(Long userId, String city) {
+        if (city != null && !city.trim().isEmpty()) {
+            return city.trim();
+        }
+
+        if (userId == null) {
+            throw new BusinessException("City is required when userId is not provided");
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+
+        if (user.getCity() == null || user.getCity().isBlank()) {
+            throw new BusinessException("User city is not set for user id: " + userId);
+        }
+
+        return user.getCity().trim();
+    }
+
+    private String buildCatalogUrl(String baseCatalogUrl, String ingredientName) {
+        if (baseCatalogUrl == null || baseCatalogUrl.isBlank()) {
+            return "";
+        }
+
+        String encodedIngredient = URLEncoder.encode(ingredientName.trim(), StandardCharsets.UTF_8);
+        if (baseCatalogUrl.contains("{ingredient}")) {
+            return baseCatalogUrl.replace("{ingredient}", encodedIngredient);
+        }
+
+        if (baseCatalogUrl.contains("?")) {
+            return baseCatalogUrl + "&q=" + encodedIngredient;
+        }
+
+        return baseCatalogUrl + "?q=" + encodedIngredient;
     }
 
     @Transactional(readOnly = true)
