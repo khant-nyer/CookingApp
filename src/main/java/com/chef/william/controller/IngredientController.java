@@ -4,6 +4,9 @@ import com.chef.william.dto.IngredientDTO;
 import com.chef.william.dto.IngredientStoreListingDTO;
 import com.chef.william.dto.SupermarketDiscoveryDTO;
 import com.chef.william.service.IngredientService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +24,11 @@ public class IngredientController {
     private final IngredientService ingredientService;
 
     // CREATE: POST /api/ingredients
+    @Operation(summary = "Create one ingredient", description = "Accepts a single IngredientDTO JSON object")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Ingredient created"),
+            @ApiResponse(responseCode = "400", description = "Validation error")
+    })
     @PostMapping
     public ResponseEntity<IngredientDTO> createIngredient(@Valid @RequestBody IngredientDTO dto) {
         IngredientDTO created = ingredientService.createIngredient(dto);
@@ -28,6 +36,11 @@ public class IngredientController {
     }
 
     // CREATE BULK: POST /api/ingredients/bulk
+    @Operation(summary = "Create ingredients in bulk", description = "Accepts a JSON array of IngredientDTO objects. Transaction is all-or-nothing.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Ingredients created"),
+            @ApiResponse(responseCode = "400", description = "Validation error or duplicate names")
+    })
     @PostMapping("/bulk")
     public ResponseEntity<List<IngredientDTO>> createIngredientsBulk(
             @NotEmpty @RequestBody List<@Valid IngredientDTO> dtos) {
