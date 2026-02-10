@@ -1,0 +1,251 @@
+[
+  {
+    "name": "Mascarpone Cheese",
+    "category": "Dairy",
+    "description": "Creamy Italian cheese used as the base of tiramisu filling.",
+    "servingAmount": 100.0,
+    "servingUnit": "G",
+    "nutrients": [
+      {
+        "nutrient": "CALORIES",
+        "value": 429.0,
+        "unit": "kcal"
+      },
+      {
+        "nutrient": "FAT",
+        "value": 43.0,
+        "unit": "g"
+      },
+      {
+        "nutrient": "SATURATED_FAT",
+        "value": 27.0,
+        "unit": "g"
+      },
+      {
+        "nutrient": "CARBOHYDRATES",
+        "value": 4.0,
+        "unit": "g"
+      },
+      {
+        "nutrient": "SUGAR",
+        "value": 4.0,
+        "unit": "g"
+      },
+      {
+        "nutrient": "PROTEIN",
+        "value": 6.0,
+        "unit": "g"
+      },
+      {
+        "nutrient": "CALCIUM",
+        "value": 120.0,
+        "unit": "mg"
+      },
+      {
+        "nutrient": "SODIUM",
+        "value": 44.0,
+        "unit": "mg"
+      }
+    ]
+  },
+  {
+    "name": "Ladyfingers",
+    "category": "Baked Goods",
+    "description": "Sponge biscuits layered in tiramisu.",
+    "servingAmount": 100.0,
+    "servingUnit": "G",
+    "nutrients": [
+      {
+        "nutrient": "CALORIES",
+        "value": 392.0,
+        "unit": "kcal"
+      },
+      {
+        "nutrient": "CARBOHYDRATES",
+        "value": 73.0,
+        "unit": "g"
+      },
+      {
+        "nutrient": "SUGAR",
+        "value": 36.0,
+        "unit": "g"
+      },
+      {
+        "nutrient": "PROTEIN",
+        "value": 10.0,
+        "unit": "g"
+      },
+      {
+        "nutrient": "FAT",
+        "value": 5.0,
+        "unit": "g"
+      },
+      {
+        "nutrient": "SODIUM",
+        "value": 160.0,
+        "unit": "mg"
+      },
+      {
+        "nutrient": "IRON",
+        "value": 2.5,
+        "unit": "mg"
+      }
+    ]
+  },
+  {
+    "name": "Espresso",
+    "category": "Beverage",
+    "description": "Strong brewed coffee used for soaking ladyfingers.",
+    "servingAmount": 100.0,
+    "servingUnit": "ML",
+    "nutrients": [
+      {
+        "nutrient": "CALORIES",
+        "value": 9.0,
+        "unit": "kcal"
+      },
+      {
+        "nutrient": "CARBOHYDRATES",
+        "value": 1.7,
+        "unit": "g"
+      },
+      {
+        "nutrient": "POTASSIUM",
+        "value": 116.0,
+        "unit": "mg"
+      },
+      {
+        "nutrient": "MAGNESIUM",
+        "value": 8.0,
+        "unit": "mg"
+      },
+      {
+        "nutrient": "SODIUM",
+        "value": 2.0,
+        "unit": "mg"
+      }
+    ]
+  },
+  {
+    "name": "Egg Yolk",
+    "category": "Protein",
+    "description": "Egg yolk used to enrich tiramisu cream.",
+    "servingAmount": 100.0,
+    "servingUnit": "G",
+    "nutrients": [
+      {
+        "nutrient": "CALORIES",
+        "value": 322.0,
+        "unit": "kcal"
+      },
+      {
+        "nutrient": "PROTEIN",
+        "value": 16.0,
+        "unit": "g"
+      },
+      {
+        "nutrient": "FAT",
+        "value": 27.0,
+        "unit": "g"
+      },
+      {
+        "nutrient": "SATURATED_FAT",
+        "value": 9.6,
+        "unit": "g"
+      },
+      {
+        "nutrient": "CARBOHYDRATES",
+        "value": 3.6,
+        "unit": "g"
+      },
+      {
+        "nutrient": "VITAMIN_B12",
+        "value": 2.0,
+        "unit": "mcg"
+      },
+      {
+        "nutrient": "VITAMIN_D",
+        "value": 5.4,
+        "unit": "mcg"
+      },
+      {
+        "nutrient": "IRON",
+        "value": 2.7,
+        "unit": "mg"
+      }
+    ]
+  },
+  {
+    "name": "Granulated Sugar",
+    "category": "Sweetener",
+    "description": "White sugar used in cream and coffee mixture.",
+    "servingAmount": 100.0,
+    "servingUnit": "G",
+    "nutrients": [
+      {
+        "nutrient": "CALORIES",
+        "value": 387.0,
+        "unit": "kcal"
+      },
+      {
+        "nutrient": "CARBOHYDRATES",
+        "value": 100.0,
+        "unit": "g"
+      },
+      {
+        "nutrient": "SUGAR",
+        "value": 100.0,
+        "unit": "g"
+      }
+    ]
+  },
+  {
+    "name": "Unsweetened Cocoa Powder",
+    "category": "Baking",
+    "description": "Dusting powder for tiramisu topping.",
+    "servingAmount": 100.0,
+    "servingUnit": "G",
+    "nutrients": [
+      {
+        "nutrient": "CALORIES",
+        "value": 228.0,
+        "unit": "kcal"
+      },
+      {
+        "nutrient": "PROTEIN",
+        "value": 20.0,
+        "unit": "g"
+      },
+      {
+        "nutrient": "FAT",
+        "value": 14.0,
+        "unit": "g"
+      },
+      {
+        "nutrient": "CARBOHYDRATES",
+        "value": 58.0,
+        "unit": "g"
+      },
+      {
+        "nutrient": "FIBER",
+        "value": 33.0,
+        "unit": "g"
+      },
+      {
+        "nutrient": "IRON",
+        "value": 13.9,
+        "unit": "mg"
+      },
+      {
+        "nutrient": "MAGNESIUM",
+        "value": 499.0,
+        "unit": "mg"
+      },
+      {
+        "nutrient": "POTASSIUM",
+        "value": 1524.0,
+        "unit": "mg"
+      }
+    ]
+  }
+]

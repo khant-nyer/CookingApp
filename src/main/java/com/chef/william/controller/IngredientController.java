@@ -5,6 +5,7 @@ import com.chef.william.dto.IngredientStoreListingDTO;
 import com.chef.william.dto.SupermarketDiscoveryDTO;
 import com.chef.william.service.IngredientService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,6 +24,14 @@ public class IngredientController {
     @PostMapping
     public ResponseEntity<IngredientDTO> createIngredient(@Valid @RequestBody IngredientDTO dto) {
         IngredientDTO created = ingredientService.createIngredient(dto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    // CREATE BULK: POST /api/ingredients/bulk
+    @PostMapping("/bulk")
+    public ResponseEntity<List<IngredientDTO>> createIngredientsBulk(
+            @NotEmpty @RequestBody List<@Valid IngredientDTO> dtos) {
+        List<IngredientDTO> created = ingredientService.createIngredients(dtos);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 

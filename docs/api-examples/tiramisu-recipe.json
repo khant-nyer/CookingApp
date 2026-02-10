@@ -1,0 +1,68 @@
+{
+  "version": "1.0",
+  "description": "Classic tiramisu cake with mascarpone cream, espresso-soaked ladyfingers, and cocoa dusting.",
+  "ingredients": [
+    {
+      "ingredientId": 1,
+      "quantity": 500,
+      "unit": "G",
+      "note": "Mascarpone at room temperature"
+    },
+    {
+      "ingredientId": 2,
+      "quantity": 250,
+      "unit": "G",
+      "note": "Ladyfingers"
+    },
+    {
+      "ingredientId": 3,
+      "quantity": 300,
+      "unit": "ML",
+      "note": "Cooled espresso"
+    },
+    {
+      "ingredientId": 4,
+      "quantity": 80,
+      "unit": "G",
+      "note": "About 4 large yolks"
+    },
+    {
+      "ingredientId": 5,
+      "quantity": 100,
+      "unit": "G",
+      "note": "Split between cream and coffee"
+    },
+    {
+      "ingredientId": 6,
+      "quantity": 15,
+      "unit": "G",
+      "note": "For dusting"
+    }
+  ],
+  "instructions": [
+    {
+      "step": 1,
+      "description": "Whisk egg yolks and sugar until thick and pale."
+    },
+    {
+      "step": 2,
+      "description": "Fold mascarpone into the yolk mixture until smooth."
+    },
+    {
+      "step": 3,
+      "description": "Quickly dip each ladyfinger in cooled espresso and arrange a layer in the dish."
+    },
+    {
+      "step": 4,
+      "description": "Spread half of the mascarpone cream over the first ladyfinger layer."
+    },
+    {
+      "step": 5,
+      "description": "Repeat with a second dipped ladyfinger layer and remaining cream."
+    },
+    {
+      "step": 6,
+      "description": "Refrigerate for at least 6 hours, then dust generously with cocoa powder before serving."
+    }
+  ]
+}
