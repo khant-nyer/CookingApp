@@ -4,6 +4,7 @@ import com.chef.william.dto.IngredientDTO;
 import com.chef.william.dto.NutritionDTO;
 import com.chef.william.exception.BusinessException;
 import com.chef.william.model.Ingredient;
+import com.chef.william.model.IngredientStoreListing;
 import com.chef.william.model.Nutrition;
 import com.chef.william.model.enums.Nutrients;
 import com.chef.william.model.enums.Unit;
@@ -14,6 +15,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -113,6 +116,43 @@ class IngredientServiceTest {
         when(ingredientRepository.findById(6L)).thenReturn(Optional.of(ingredient));
 
         assertThrows(BusinessException.class, () -> ingredientService.getIngredientById(6L));
+    }
+
+
+    @Test
+    void getIngredientByIdIncludesNearbyStoreListingsSortedByDistance() {
+        Ingredient ingredient = new Ingredient();
+        ingredient.setId(7L);
+        ingredient.setName("Eggs");
+        ingredient.setServingAmount(1.0);
+        ingredient.setServingUnit("piece");
+
+        IngredientStoreListing farther = new IngredientStoreListing();
+        farther.setId(21L);
+        farther.setIngredient(ingredient);
+        farther.setStoreName("Far Supermarket");
+        farther.setDistanceKm(new BigDecimal("5.100"));
+        farther.setInStock(Boolean.TRUE);
+        farther.setCapturedAt(LocalDateTime.now().minusMinutes(15));
+
+        IngredientStoreListing closer = new IngredientStoreListing();
+        closer.setId(22L);
+        closer.setIngredient(ingredient);
+        closer.setStoreName("Near Shop");
+        closer.setDistanceKm(new BigDecimal("0.700"));
+        closer.setInStock(Boolean.TRUE);
+        closer.setCapturedAt(LocalDateTime.now().minusMinutes(2));
+
+        ingredient.getStoreListings().add(farther);
+        ingredient.getStoreListings().add(closer);
+
+        when(ingredientRepository.findById(7L)).thenReturn(Optional.of(ingredient));
+
+        IngredientDTO dto = ingredientService.getIngredientById(7L);
+
+        assertEquals(2, dto.getNearbyStoreListings().size());
+        assertEquals("Near Shop", dto.getNearbyStoreListings().get(0).getStoreName());
+        assertEquals("Far Supermarket", dto.getNearbyStoreListings().get(1).getStoreName());
     }
 
     @Test
