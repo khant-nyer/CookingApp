@@ -4,6 +4,7 @@ import com.chef.william.dto.FoodDTO;
 import com.chef.william.dto.FoodRecipeStatusDTO;
 import com.chef.william.dto.RecipeDTO;
 import com.chef.william.exception.BusinessException;
+import com.chef.william.exception.DuplicateResourceException;
 import com.chef.william.exception.ResourceNotFoundException;
 import com.chef.william.model.Food;
 import com.chef.william.repository.FoodRepository;
@@ -24,6 +25,11 @@ public class FoodService {
 
     @Transactional
     public FoodDTO createFood(FoodDTO dto) {
+        String normalizedName = normalizeName(dto.getName());
+        if (foodRepository.existsByNameIgnoreCase(normalizedName)) {
+            throw new DuplicateResourceException("Food", "name", normalizedName);
+        }
+
         Food food = new Food();
         mapToEntity(dto, food);
         Food savedFood = foodRepository.save(food);
@@ -35,6 +41,12 @@ public class FoodService {
     public FoodDTO updateFood(Long id, FoodDTO dto) {
         Food food = foodRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Food not found with id: " + id));
+
+        String normalizedName = normalizeName(dto.getName());
+        if (foodRepository.existsByNameIgnoreCaseAndIdNot(normalizedName, id)) {
+            throw new DuplicateResourceException("Food", "name", normalizedName);
+        }
+
         mapToEntity(dto, food);
         Food savedFood = foodRepository.save(food);
         createRecipeVersions(savedFood.getId(), dto.getRecipes());
@@ -76,8 +88,12 @@ public class FoodService {
     }
 
     private void mapToEntity(FoodDTO dto, Food entity) {
-        entity.setName(dto.getName());
+        entity.setName(normalizeName(dto.getName()));
         entity.setCategory(dto.getCategory());
+    }
+
+    private String normalizeName(String name) {
+        return name == null ? null : name.trim();
     }
 
     private FoodDTO mapToDto(Food food) {

@@ -5,6 +5,7 @@ import com.chef.william.dto.FoodRecipeStatusDTO;
 import com.chef.william.dto.InstructionDTO;
 import com.chef.william.dto.RecipeDTO;
 import com.chef.william.dto.RecipeIngredientDTO;
+import com.chef.william.exception.DuplicateResourceException;
 import com.chef.william.model.Food;
 import com.chef.william.model.Recipe;
 import com.chef.william.repository.FoodRepository;
@@ -21,7 +22,9 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -93,5 +96,15 @@ class FoodServiceTest {
         foodService.createFood(new FoodDTO(null, "Som Tum", "Salad", null, List.of(recipeDTO)));
 
         verify(recipeService).createRecipe(any(RecipeDTO.class));
+    }
+
+    @Test
+    void createFoodShouldThrowWhenNameAlreadyExists() {
+        when(foodRepository.existsByNameIgnoreCase("Ramen")).thenReturn(true);
+
+        assertThrows(DuplicateResourceException.class,
+                () -> foodService.createFood(new FoodDTO(null, "Ramen", "Noodle", null, List.of())));
+
+        verify(foodRepository, never()).save(any(Food.class));
     }
 }
