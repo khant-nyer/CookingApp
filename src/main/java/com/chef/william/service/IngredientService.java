@@ -124,7 +124,12 @@ public class IngredientService {
         dto.setCategory(entity.getCategory());
         dto.setDescription(entity.getDescription());
         dto.setServingAmount(entity.getServingAmount());
-        dto.setServingUnit(Unit.valueOf(entity.getServingUnit().toUpperCase())); // Adjust if needed
+        Unit servingUnit = Unit.fromAbbreviation(entity.getServingUnit());
+        if (servingUnit == null) {
+            throw new BusinessException("Unsupported serving unit stored for ingredient id " + entity.getId() +
+                    ": " + entity.getServingUnit());
+        }
+        dto.setServingUnit(servingUnit);
 
         dto.setNutrients(entity.getNutritionList().stream()
                 .map(n -> {
