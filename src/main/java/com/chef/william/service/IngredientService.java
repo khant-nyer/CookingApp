@@ -46,6 +46,14 @@ public class IngredientService {
                 .toList();
     }
 
+
+    @Transactional
+    public List<IngredientDTO> createIngredients(List<IngredientDTO> dtos) {
+        return dtos.stream()
+                .map(this::createIngredient)
+                .toList();
+    }
+
     @Transactional
     public IngredientDTO updateIngredient(Long id, IngredientDTO dto) {
         Ingredient ingredient = ingredientRepository.findById(id)
