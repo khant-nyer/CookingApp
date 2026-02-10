@@ -3,15 +3,21 @@ package com.chef.william.service;
 import com.chef.william.dto.IngredientDTO;
 import com.chef.william.dto.IngredientStoreListingDTO;
 import com.chef.william.dto.NutritionDTO;
+import com.chef.william.dto.SupermarketDiscoveryDTO;
 import com.chef.william.exception.BusinessException;
 import com.chef.william.exception.ResourceNotFoundException;
+import com.chef.william.model.CitySupermarket;
 import com.chef.william.model.Ingredient;
 import com.chef.william.model.IngredientStoreListing;
 import com.chef.william.model.Nutrition;
+import com.chef.william.model.User;
 import com.chef.william.model.enums.Nutrients;
 import com.chef.william.model.enums.Unit;
+import com.chef.william.repository.CitySupermarketRepository;
 import com.chef.william.repository.IngredientRepository;
 import com.chef.william.repository.IngredientStoreListingRepository;
+import com.chef.william.repository.UserRepository;
+import com.chef.william.service.crawler.SupermarketCrawlerClient;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -38,6 +44,15 @@ class IngredientServiceTest {
 
     @Mock
     private IngredientStoreListingRepository ingredientStoreListingRepository;
+
+    @Mock
+    private CitySupermarketRepository citySupermarketRepository;
+
+    @Mock
+    private UserRepository userRepository;
+
+    @Mock
+    private SupermarketCrawlerClient supermarketCrawlerClient;
 
     @InjectMocks
     private IngredientService ingredientService;
@@ -192,6 +207,40 @@ class IngredientServiceTest {
 
         assertThrows(ResourceNotFoundException.class,
                 () -> ingredientService.getIngredientStoreLocations(404L));
+    }
+
+
+    @Test
+    void discoverPopularSupermarketsUsesCityParamAndReturnsOnlyMatches() {
+        CitySupermarket market1 = new CitySupermarket(1L, "Bangkok", "Big C", "https://example.com", "https://example.com/search?ingredient={ingredient}", null);
+        CitySupermarket market2 = new CitySupermarket(2L, "Bangkok", "Lotus", "https://example2.com", "https://example2.com/search?ingredient={ingredient}", null);
+
+        when(citySupermarketRepository.findByCityIgnoreCase("Bangkok")).thenReturn(List.of(market1, market2));
+        when(supermarketCrawlerClient.webpageContainsIngredient(any(String.class), eq("tomato"))).thenReturn(true, false);
+
+        List<SupermarketDiscoveryDTO> result = ingredientService.discoverPopularSupermarkets(null, "Bangkok", "tomato");
+
+        assertEquals(1, result.size());
+        assertEquals("Big C", result.get(0).getSupermarketName());
+    }
+
+    @Test
+    void discoverPopularSupermarketsUsesUserCityWhenCityNotProvided() {
+        User user = new User();
+        user.setId(99L);
+        user.setCity("Manila");
+
+        CitySupermarket market = new CitySupermarket(3L, "Manila", "SM Hypermarket", null, "https://example.com/catalog", null);
+
+        when(userRepository.findById(99L)).thenReturn(Optional.of(user));
+        when(citySupermarketRepository.findByCityIgnoreCase("Manila")).thenReturn(List.of(market));
+        when(supermarketCrawlerClient.webpageContainsIngredient(any(String.class), eq("onion"))).thenReturn(true);
+
+        List<SupermarketDiscoveryDTO> result = ingredientService.discoverPopularSupermarkets(99L, null, "onion");
+
+        assertEquals(1, result.size());
+        assertEquals("Manila", result.get(0).getCity());
+        assertEquals("SM Hypermarket", result.get(0).getSupermarketName());
     }
 
     @Test

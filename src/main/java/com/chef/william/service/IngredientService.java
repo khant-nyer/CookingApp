@@ -2,21 +2,30 @@ package com.chef.william.service;
 
 import com.chef.william.dto.IngredientDTO;
 import com.chef.william.dto.NutritionDTO;
+import com.chef.william.dto.SupermarketDiscoveryDTO;
 import com.chef.william.dto.IngredientStoreListingDTO;
 import com.chef.william.exception.ResourceNotFoundException;
 import com.chef.william.exception.BusinessException;
+import com.chef.william.model.CitySupermarket;
 import com.chef.william.model.Ingredient;
 import com.chef.william.model.IngredientStoreListing;
 import com.chef.william.model.enums.Nutrients;
 import com.chef.william.model.Nutrition;
 import com.chef.william.model.enums.Unit;
+import com.chef.william.model.User;
+import com.chef.william.repository.CitySupermarketRepository;
 import com.chef.william.repository.IngredientRepository;
 import com.chef.william.repository.IngredientStoreListingRepository;
+import com.chef.william.repository.UserRepository;
+import com.chef.william.service.crawler.SupermarketCrawlerClient;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +38,9 @@ public class IngredientService {
 
     private final IngredientRepository ingredientRepository;
     private final IngredientStoreListingRepository ingredientStoreListingRepository;
+    private final CitySupermarketRepository citySupermarketRepository;
+    private final UserRepository userRepository;
+    private final SupermarketCrawlerClient supermarketCrawlerClient;
 
     @Transactional
     public IngredientDTO createIngredient(IngredientDTO dto) {
@@ -208,6 +220,76 @@ public class IngredientService {
                     return left.getDistanceKm().compareTo(right.getDistanceKm());
                 })
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<SupermarketDiscoveryDTO> discoverPopularSupermarkets(Long userId, String city, String ingredientName) {
+        if (ingredientName == null || ingredientName.trim().isEmpty()) {
+            throw new BusinessException("Ingredient name is required for supermarket discovery");
+        }
+
+        String effectiveCity = resolveCity(userId, city);
+        List<CitySupermarket> supermarkets = citySupermarketRepository.findByCityIgnoreCase(effectiveCity.trim());
+
+        if (supermarkets.isEmpty()) {
+            return List.of();
+        }
+
+        List<SupermarketDiscoveryDTO> results = new ArrayList<>();
+        for (CitySupermarket market : supermarkets) {
+            String searchUrl = buildCatalogUrl(market.getCatalogSearchUrl(), ingredientName);
+            boolean matched = supermarketCrawlerClient.webpageContainsIngredient(searchUrl, ingredientName);
+
+            results.add(new SupermarketDiscoveryDTO(
+                    effectiveCity,
+                    market.getSupermarketName(),
+                    market.getOfficialWebsite(),
+                    searchUrl,
+                    matched,
+                    matched ? "OFFICIAL_WEB_CRAWL" : "NO_MATCH_ON_CRAWL",
+                    LocalDateTime.now()
+            ));
+        }
+
+        return results.stream()
+                .filter(SupermarketDiscoveryDTO::isIngredientMatched)
+                .toList();
+    }
+
+    private String resolveCity(Long userId, String city) {
+        if (city != null && !city.trim().isEmpty()) {
+            return city.trim();
+        }
+
+        if (userId == null) {
+            throw new BusinessException("City is required when userId is not provided");
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+
+        if (user.getCity() == null || user.getCity().isBlank()) {
+            throw new BusinessException("User city is not set for user id: " + userId);
+        }
+
+        return user.getCity().trim();
+    }
+
+    private String buildCatalogUrl(String baseCatalogUrl, String ingredientName) {
+        if (baseCatalogUrl == null || baseCatalogUrl.isBlank()) {
+            return "";
+        }
+
+        String encodedIngredient = URLEncoder.encode(ingredientName.trim(), StandardCharsets.UTF_8);
+        if (baseCatalogUrl.contains("{ingredient}")) {
+            return baseCatalogUrl.replace("{ingredient}", encodedIngredient);
+        }
+
+        if (baseCatalogUrl.contains("?")) {
+            return baseCatalogUrl + "&q=" + encodedIngredient;
+        }
+
+        return baseCatalogUrl + "?q=" + encodedIngredient;
     }
 
     @Transactional(readOnly = true)

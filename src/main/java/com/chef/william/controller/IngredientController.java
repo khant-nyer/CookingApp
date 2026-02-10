@@ -2,6 +2,7 @@ package com.chef.william.controller;
 
 import com.chef.william.dto.IngredientDTO;
 import com.chef.william.dto.IngredientStoreListingDTO;
+import com.chef.william.dto.SupermarketDiscoveryDTO;
 import com.chef.william.service.IngredientService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -60,6 +61,17 @@ public class IngredientController {
     public ResponseEntity<Void> deleteIngredient(@PathVariable Long id) {
         ingredientService.deleteIngredient(id);
         return ResponseEntity.noContent().build();  // 204 No Content on success
+    }
+
+
+    @GetMapping("/discover-supermarkets")
+    public ResponseEntity<List<SupermarketDiscoveryDTO>> discoverSupermarkets(
+            @RequestParam(name = "ingredientName") String ingredientName,
+            @RequestParam(name = "city", required = false) String city,
+            @RequestParam(name = "userId", required = false) Long userId) {
+        List<SupermarketDiscoveryDTO> results = ingredientService
+                .discoverPopularSupermarkets(userId, city, ingredientName);
+        return ResponseEntity.ok(results);
     }
 
     @GetMapping("/search")
