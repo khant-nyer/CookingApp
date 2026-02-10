@@ -25,6 +25,4 @@ public class IngredientStoreListingDTO {
     private LocalDateTime capturedAt;
     private LocalDateTime expiresAt;
 
-    public IngredientStoreListingDTO(Long id, String storeName, String storeName1, String storeAddress, String storePlaceId, BigDecimal latitude, BigDecimal longitude, BigDecimal price, String currency, Boolean inStock, BigDecimal distanceKm, String sourceProvider, LocalDateTime capturedAt, LocalDateTime expiresAt) {
-    }
 }

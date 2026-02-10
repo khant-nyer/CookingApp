@@ -123,7 +123,6 @@ public class IngredientMapper {
         return new IngredientStoreListingDTO(
                 listing.getId(),
                 listing.getStoreName(),
-                listing.getStoreName(),
                 listing.getStoreAddress(),
                 listing.getStorePlaceId(),
                 listing.getLatitude(),
