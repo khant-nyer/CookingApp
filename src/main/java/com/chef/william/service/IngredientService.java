@@ -2,9 +2,11 @@ package com.chef.william.service;
 
 import com.chef.william.dto.IngredientDTO;
 import com.chef.william.dto.NutritionDTO;
+import com.chef.william.dto.IngredientStoreListingDTO;
 import com.chef.william.exception.ResourceNotFoundException;
 import com.chef.william.exception.BusinessException;
 import com.chef.william.model.Ingredient;
+import com.chef.william.model.IngredientStoreListing;
 import com.chef.william.model.enums.Nutrients;
 import com.chef.william.model.Nutrition;
 import com.chef.william.model.enums.Unit;
@@ -124,7 +126,12 @@ public class IngredientService {
         dto.setCategory(entity.getCategory());
         dto.setDescription(entity.getDescription());
         dto.setServingAmount(entity.getServingAmount());
-        dto.setServingUnit(Unit.valueOf(entity.getServingUnit().toUpperCase())); // Adjust if needed
+        Unit servingUnit = Unit.fromAbbreviation(entity.getServingUnit());
+        if (servingUnit == null) {
+            throw new BusinessException("Unsupported serving unit stored for ingredient id " + entity.getId() +
+                    ": " + entity.getServingUnit());
+        }
+        dto.setServingUnit(servingUnit);
 
         dto.setNutrients(entity.getNutritionList().stream()
                 .map(n -> {
@@ -137,7 +144,41 @@ public class IngredientService {
                 })
                 .collect(Collectors.toList()));
 
+        dto.setNearbyStoreListings(entity.getStoreListings().stream()
+                .map(this::mapStoreListingToDto)
+                .sorted((left, right) -> {
+                    if (left.getDistanceKm() == null && right.getDistanceKm() == null) {
+                        return 0;
+                    }
+                    if (left.getDistanceKm() == null) {
+                        return 1;
+                    }
+                    if (right.getDistanceKm() == null) {
+                        return -1;
+                    }
+                    return left.getDistanceKm().compareTo(right.getDistanceKm());
+                })
+                .collect(Collectors.toList()));
+
         return dto;
+    }
+
+    private IngredientStoreListingDTO mapStoreListingToDto(IngredientStoreListing listing) {
+        return new IngredientStoreListingDTO(
+                listing.getId(),
+                listing.getStoreName(),
+                listing.getStoreAddress(),
+                listing.getStorePlaceId(),
+                listing.getLatitude(),
+                listing.getLongitude(),
+                listing.getPrice(),
+                listing.getCurrency(),
+                listing.getInStock(),
+                listing.getDistanceKm(),
+                listing.getSourceProvider(),
+                listing.getCapturedAt(),
+                listing.getExpiresAt()
+        );
     }
 
     @Transactional(readOnly = true)
