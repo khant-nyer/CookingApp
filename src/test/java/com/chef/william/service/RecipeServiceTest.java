@@ -49,7 +49,7 @@ class RecipeServiceTest {
     @Test
     void createRecipeThrowsWhenIngredientIdsAreDuplicated() {
         RecipeDTO dto = new RecipeDTO();
-        dto.setTitle("Pasta");
+        dto.setVersion("v1");
         dto.setIngredients(List.of(
                 new RecipeIngredientDTO(null, 1L, null, 1.0, Unit.G, null),
                 new RecipeIngredientDTO(null, 1L, null, 2.0, Unit.G, null)
@@ -63,7 +63,7 @@ class RecipeServiceTest {
     @Test
     void createRecipeThrowsWhenInstructionStepsAreDuplicated() {
         RecipeDTO dto = new RecipeDTO();
-        dto.setTitle("Pasta");
+        dto.setVersion("v1");
         dto.setIngredients(List.of(new RecipeIngredientDTO(null, 1L, null, 1.0, Unit.G, null)));
         dto.setInstructions(List.of(
                 InstructionDTO.builder().step(1).description("First").build(),
@@ -86,7 +86,7 @@ class RecipeServiceTest {
 
         Recipe recipe = new Recipe();
         recipe.setId(10L);
-        recipe.setTitle("Old title");
+        recipe.setVersion("Old version");
 
         RecipeIngredient existingRi = new RecipeIngredient();
         existingRi.setId(100L);
@@ -121,7 +121,7 @@ class RecipeServiceTest {
         recipe.getInstructions().add(removedInstruction);
 
         RecipeDTO update = new RecipeDTO();
-        update.setTitle("New title");
+        update.setVersion("v2");
         update.setDescription("New description");
         update.setIngredients(List.of(
                 new RecipeIngredientDTO(null, 1L, null, 3.0, Unit.KG, "updated"),
@@ -138,7 +138,7 @@ class RecipeServiceTest {
 
         RecipeDTO result = recipeService.updateRecipe(10L, update);
 
-        assertEquals("New title", result.getTitle());
+        assertEquals("v2", result.getVersion());
         assertEquals(2, result.getIngredients().size());
         assertEquals(2, recipe.getRecipeIngredients().size());
         assertEquals(3.0, existingRi.getQuantity());
@@ -160,7 +160,7 @@ class RecipeServiceTest {
         food.setName("Pad Kra Pao");
 
         RecipeDTO dto = new RecipeDTO();
-        dto.setTitle("Pad Kra Pao");
+        dto.setVersion("v1");
         dto.setDescription("Classic");
         dto.setFoodId(7L);
         dto.setIngredients(List.of(new RecipeIngredientDTO(null, 1L, null, 1.0, Unit.G, null)));
@@ -183,7 +183,7 @@ class RecipeServiceTest {
     @Test
     void createRecipeThrowsWhenFoodIdNotFound() {
         RecipeDTO dto = new RecipeDTO();
-        dto.setTitle("No Food");
+        dto.setVersion("v1");
         dto.setFoodId(404L);
         dto.setIngredients(List.of(new RecipeIngredientDTO(null, 1L, null, 1.0, Unit.G, null)));
         dto.setInstructions(List.of(InstructionDTO.builder().step(1).description("Cook").build()));
@@ -206,7 +206,7 @@ class RecipeServiceTest {
 
         Recipe recipe = new Recipe();
         recipe.setId(11L);
-        recipe.setTitle("Soup v1");
+        recipe.setVersion("v1");
         recipe.setFood(existingFood);
 
         RecipeIngredient ri = new RecipeIngredient();
@@ -225,7 +225,7 @@ class RecipeServiceTest {
         recipe.getInstructions().add(ins);
 
         RecipeDTO update = new RecipeDTO();
-        update.setTitle("Soup v2");
+        update.setVersion("v2");
         update.setDescription("No linked food");
         update.setFoodId(null);
         update.setIngredients(List.of(new RecipeIngredientDTO(null, 1L, null, 2.0, Unit.G, null)));

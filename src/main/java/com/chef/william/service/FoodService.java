@@ -2,9 +2,12 @@ package com.chef.william.service;
 
 import com.chef.william.dto.FoodDTO;
 import com.chef.william.dto.FoodRecipeStatusDTO;
+import com.chef.william.dto.RecipeDTO;
+import com.chef.william.exception.BusinessException;
 import com.chef.william.exception.ResourceNotFoundException;
 import com.chef.william.model.Food;
 import com.chef.william.repository.FoodRepository;
+import com.chef.william.repository.RecipeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,12 +19,16 @@ import java.util.List;
 public class FoodService {
 
     private final FoodRepository foodRepository;
+    private final RecipeService recipeService;
+    private final RecipeRepository recipeRepository;
 
     @Transactional
     public FoodDTO createFood(FoodDTO dto) {
         Food food = new Food();
         mapToEntity(dto, food);
-        return mapToDto(foodRepository.save(food));
+        Food savedFood = foodRepository.save(food);
+        createRecipeVersions(savedFood.getId(), dto.getRecipes());
+        return mapToDto(savedFood);
     }
 
     @Transactional
@@ -29,7 +36,9 @@ public class FoodService {
         Food food = foodRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Food not found with id: " + id));
         mapToEntity(dto, food);
-        return mapToDto(foodRepository.save(food));
+        Food savedFood = foodRepository.save(food);
+        createRecipeVersions(savedFood.getId(), dto.getRecipes());
+        return mapToDto(savedFood);
     }
 
     @Transactional(readOnly = true)
@@ -72,7 +81,27 @@ public class FoodService {
     }
 
     private FoodDTO mapToDto(Food food) {
-        int recipeCount = food.getRecipes() == null ? 0 : food.getRecipes().size();
-        return new FoodDTO(food.getId(), food.getName(), food.getCategory(), recipeCount);
+        int recipeCount = recipeRepository.countByFoodId(food.getId());
+        return new FoodDTO(food.getId(), food.getName(), food.getCategory(), recipeCount, List.of());
+    }
+
+    private void createRecipeVersions(Long foodId, List<RecipeDTO> recipes) {
+        if (recipes == null || recipes.isEmpty()) {
+            return;
+        }
+
+        for (RecipeDTO recipe : recipes) {
+            if (recipe == null) {
+                throw new BusinessException("Recipe payload in food request must not be null");
+            }
+            RecipeDTO recipePayload = RecipeDTO.builder()
+                    .version(recipe.getVersion())
+                    .description(recipe.getDescription())
+                    .ingredients(recipe.getIngredients())
+                    .instructions(recipe.getInstructions())
+                    .foodId(foodId)
+                    .build();
+            recipeService.createRecipe(recipePayload);
+        }
     }
 }

@@ -2,9 +2,14 @@ package com.chef.william.service;
 
 import com.chef.william.dto.FoodDTO;
 import com.chef.william.dto.FoodRecipeStatusDTO;
+import com.chef.william.dto.InstructionDTO;
+import com.chef.william.dto.RecipeDTO;
+import com.chef.william.dto.RecipeIngredientDTO;
 import com.chef.william.model.Food;
 import com.chef.william.model.Recipe;
 import com.chef.william.repository.FoodRepository;
+import com.chef.william.repository.RecipeRepository;
+import com.chef.william.model.enums.Unit;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -17,6 +22,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -24,6 +30,12 @@ class FoodServiceTest {
 
     @Mock
     private FoodRepository foodRepository;
+
+    @Mock
+    private RecipeService recipeService;
+
+    @Mock
+    private RecipeRepository recipeRepository;
 
     @InjectMocks
     private FoodService foodService;
@@ -36,6 +48,7 @@ class FoodServiceTest {
         food.setRecipes(new ArrayList<>());
 
         when(foodRepository.findById(1L)).thenReturn(Optional.of(food));
+        when(recipeRepository.countByFoodId(1L)).thenReturn(0);
 
         FoodRecipeStatusDTO status = foodService.getFoodRecipeStatus(1L);
 
@@ -52,10 +65,33 @@ class FoodServiceTest {
         food.setRecipes(List.of(new Recipe()));
 
         when(foodRepository.save(any(Food.class))).thenReturn(food);
+        when(recipeRepository.countByFoodId(10L)).thenReturn(1);
 
-        FoodDTO result = foodService.createFood(new FoodDTO(null, "Pad Thai", "Noodle", null));
+        FoodDTO result = foodService.createFood(new FoodDTO(null, "Pad Thai", "Noodle", null, List.of()));
 
         assertEquals(10L, result.getId());
         assertEquals(1, result.getRecipeCount());
+    }
+
+    @Test
+    void createFoodShouldCreateRecipeVersionsWhenProvided() {
+        Food food = new Food();
+        food.setId(12L);
+        food.setName("Som Tum");
+        food.setCategory("Salad");
+
+        RecipeDTO recipeDTO = RecipeDTO.builder()
+                .version("v1")
+                .description("Spicy")
+                .ingredients(List.of(new RecipeIngredientDTO(null, 1L, null, 1.0, Unit.G, null)))
+                .instructions(List.of(InstructionDTO.builder().step(1).description("Mix").build()))
+                .build();
+
+        when(foodRepository.save(any(Food.class))).thenReturn(food);
+        when(recipeRepository.countByFoodId(12L)).thenReturn(1);
+
+        foodService.createFood(new FoodDTO(null, "Som Tum", "Salad", null, List.of(recipeDTO)));
+
+        verify(recipeService).createRecipe(any(RecipeDTO.class));
     }
 }

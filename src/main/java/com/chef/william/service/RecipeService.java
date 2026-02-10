@@ -73,7 +73,7 @@ public class RecipeService {
     }
 
     private void populateScalars(Recipe recipe, RecipeDTO dto) {
-        recipe.setTitle(dto.getTitle());
+        recipe.setVersion(dto.getVersion());
         recipe.setDescription(dto.getDescription());
 
         if (dto.getFoodId() != null) {
@@ -167,7 +167,7 @@ public class RecipeService {
     private RecipeDTO mapToDTO(Recipe recipe) {
         RecipeDTO dto = RecipeDTO.builder()
                 .id(recipe.getId())
-                .title(recipe.getTitle())
+                .version(recipe.getVersion())
                 .description(recipe.getDescription())
                 .foodId(recipe.getFood() != null ? recipe.getFood().getId() : null)
                 .foodName(recipe.getFood() != null ? recipe.getFood().getName() : null)

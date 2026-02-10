@@ -1,10 +1,14 @@
 package com.chef.william.dto;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -20,4 +24,7 @@ public class FoodDTO {
     private String category;
 
     private Integer recipeCount;
+
+    @Valid
+    private List<RecipeDTO> recipes = new ArrayList<>();
 }
