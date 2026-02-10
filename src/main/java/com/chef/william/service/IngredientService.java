@@ -28,9 +28,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -222,38 +224,91 @@ public class IngredientService {
                 .toList();
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<SupermarketDiscoveryDTO> discoverPopularSupermarkets(Long userId, String city, String ingredientName) {
         if (ingredientName == null || ingredientName.trim().isEmpty()) {
             throw new BusinessException("Ingredient name is required for supermarket discovery");
         }
 
         String effectiveCity = resolveCity(userId, city);
-        List<CitySupermarket> supermarkets = citySupermarketRepository.findByCityIgnoreCase(effectiveCity.trim());
+        List<CitySupermarket> persistedMarkets = citySupermarketRepository.findByCityIgnoreCase(effectiveCity.trim());
 
-        if (supermarkets.isEmpty()) {
-            return List.of();
-        }
+        List<CitySupermarket> discoveryMarkets = persistedMarkets.isEmpty()
+                ? getFallbackCitySupermarkets(effectiveCity)
+                : persistedMarkets;
 
         List<SupermarketDiscoveryDTO> results = new ArrayList<>();
-        for (CitySupermarket market : supermarkets) {
+        List<CitySupermarket> matchedFromFallback = new ArrayList<>();
+
+        for (CitySupermarket market : discoveryMarkets) {
             String searchUrl = buildCatalogUrl(market.getCatalogSearchUrl(), ingredientName);
-            boolean matched = supermarketCrawlerClient.webpageContainsIngredient(searchUrl, ingredientName);
+            String crawlTarget = !searchUrl.isBlank() ? searchUrl : market.getOfficialWebsite();
+            boolean matched = supermarketCrawlerClient.webpageContainsIngredient(crawlTarget, ingredientName);
 
             results.add(new SupermarketDiscoveryDTO(
                     effectiveCity,
                     market.getSupermarketName(),
                     market.getOfficialWebsite(),
-                    searchUrl,
+                    crawlTarget,
                     matched,
                     matched ? "OFFICIAL_WEB_CRAWL" : "NO_MATCH_ON_CRAWL",
                     LocalDateTime.now()
             ));
+
+            if (persistedMarkets.isEmpty() && matched) {
+                matchedFromFallback.add(market);
+            }
         }
 
-        return results.stream()
-                .filter(SupermarketDiscoveryDTO::isIngredientMatched)
+        if (!matchedFromFallback.isEmpty()) {
+            saveDiscoveredSupermarkets(effectiveCity, matchedFromFallback);
+        }
+
+        return results;
+    }
+
+    private void saveDiscoveredSupermarkets(String city, List<CitySupermarket> markets) {
+        List<CitySupermarket> toSave = markets.stream()
+                .filter(market -> !citySupermarketRepository
+                        .existsByCityIgnoreCaseAndSupermarketNameIgnoreCase(city, market.getSupermarketName()))
+                .peek(market -> market.setId(null))
+                .peek(market -> market.setCity(city))
                 .toList();
+
+        if (!toSave.isEmpty()) {
+            citySupermarketRepository.saveAll(toSave);
+        }
+    }
+
+    private List<CitySupermarket> getFallbackCitySupermarkets(String city) {
+        if (city == null) {
+            return List.of();
+        }
+
+        String normalizedCity = city.trim().toLowerCase(Locale.ROOT);
+        if (!"bangkok".equals(normalizedCity)) {
+            return List.of();
+        }
+
+        return Stream.of(
+                        fallbackSupermarket("Big C", "https://www.bigc.co.th",
+                                "https://www.bigc.co.th/product/golden-mountain-seasoning-sauce-oyster-sauce-double-pack-1-l-660-ml.79188"),
+                        fallbackSupermarket("Lotus's", "https://www.lotuss.com",
+                                "https://www.lotuss.com/th/search/{ingredient}"),
+                        fallbackSupermarket("Tops", "https://www.tops.co.th",
+                                "https://www.tops.co.th/en/search?query={ingredient}")
+                )
+                .peek(market -> market.setCity(city.trim()))
+                .toList();
+    }
+
+    private CitySupermarket fallbackSupermarket(String name, String website, String catalogUrl) {
+        CitySupermarket market = new CitySupermarket();
+        market.setSupermarketName(name);
+        market.setOfficialWebsite(website);
+        market.setCatalogSearchUrl(catalogUrl);
+        market.setNotes("Fallback popular supermarket seed");
+        return market;
     }
 
     private String resolveCity(Long userId, String city) {

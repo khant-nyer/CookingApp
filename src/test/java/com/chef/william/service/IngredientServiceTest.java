@@ -34,6 +34,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -211,7 +212,7 @@ class IngredientServiceTest {
 
 
     @Test
-    void discoverPopularSupermarketsUsesCityParamAndReturnsOnlyMatches() {
+    void discoverPopularSupermarketsUsesCityParamAndReturnsResultsWithMatchFlags() {
         CitySupermarket market1 = new CitySupermarket(1L, "Bangkok", "Big C", "https://example.com", "https://example.com/search?ingredient={ingredient}", null);
         CitySupermarket market2 = new CitySupermarket(2L, "Bangkok", "Lotus", "https://example2.com", "https://example2.com/search?ingredient={ingredient}", null);
 
@@ -220,8 +221,27 @@ class IngredientServiceTest {
 
         List<SupermarketDiscoveryDTO> result = ingredientService.discoverPopularSupermarkets(null, "Bangkok", "tomato");
 
-        assertEquals(1, result.size());
+        assertEquals(2, result.size());
         assertEquals("Big C", result.get(0).getSupermarketName());
+        assertEquals(true, result.get(0).isIngredientMatched());
+        assertEquals("Lotus", result.get(1).getSupermarketName());
+        assertEquals(false, result.get(1).isIngredientMatched());
+    }
+
+
+    @Test
+    void discoverPopularSupermarketsFallsBackWhenDbIsEmptyAndSavesMatchedSupermarkets() {
+        when(citySupermarketRepository.findByCityIgnoreCase("Bangkok")).thenReturn(List.of());
+        when(supermarketCrawlerClient.webpageContainsIngredient(any(String.class), eq("Soy Sauce")))
+                .thenReturn(true, false, false);
+
+        List<SupermarketDiscoveryDTO> result = ingredientService.discoverPopularSupermarkets(null, "Bangkok", "Soy Sauce");
+
+        assertEquals(3, result.size());
+        assertEquals("Big C", result.get(0).getSupermarketName());
+        assertEquals(true, result.get(0).isIngredientMatched());
+
+        verify(citySupermarketRepository).saveAll(any());
     }
 
     @Test

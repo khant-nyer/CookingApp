@@ -7,4 +7,6 @@ import java.util.List;
 
 public interface CitySupermarketRepository extends JpaRepository<CitySupermarket, Long> {
     List<CitySupermarket> findByCityIgnoreCase(String city);
+
+    boolean existsByCityIgnoreCaseAndSupermarketNameIgnoreCase(String city, String supermarketName);
 }
