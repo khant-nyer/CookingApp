@@ -11,10 +11,12 @@ import com.chef.william.model.enums.Nutrients;
 import com.chef.william.model.Nutrition;
 import com.chef.william.model.enums.Unit;
 import com.chef.william.repository.IngredientRepository;
+import com.chef.william.repository.IngredientStoreListingRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +28,7 @@ import java.util.stream.Collectors;
 public class IngredientService {
 
     private final IngredientRepository ingredientRepository;
+    private final IngredientStoreListingRepository ingredientStoreListingRepository;
 
     @Transactional
     public IngredientDTO createIngredient(IngredientDTO dto) {
@@ -179,6 +182,32 @@ public class IngredientService {
                 listing.getCapturedAt(),
                 listing.getExpiresAt()
         );
+    }
+
+
+    @Transactional(readOnly = true)
+    public List<IngredientStoreListingDTO> getIngredientStoreLocations(Long ingredientId) {
+        if (!ingredientRepository.existsById(ingredientId)) {
+            throw new ResourceNotFoundException("Ingredient not found with id: " + ingredientId);
+        }
+
+        return ingredientStoreListingRepository
+                .findActiveListingsByIngredientId(ingredientId, LocalDateTime.now())
+                .stream()
+                .map(this::mapStoreListingToDto)
+                .sorted((left, right) -> {
+                    if (left.getDistanceKm() == null && right.getDistanceKm() == null) {
+                        return 0;
+                    }
+                    if (left.getDistanceKm() == null) {
+                        return 1;
+                    }
+                    if (right.getDistanceKm() == null) {
+                        return -1;
+                    }
+                    return left.getDistanceKm().compareTo(right.getDistanceKm());
+                })
+                .toList();
     }
 
     @Transactional(readOnly = true)

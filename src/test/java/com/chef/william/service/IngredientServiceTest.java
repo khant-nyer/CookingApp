@@ -1,14 +1,17 @@
 package com.chef.william.service;
 
 import com.chef.william.dto.IngredientDTO;
+import com.chef.william.dto.IngredientStoreListingDTO;
 import com.chef.william.dto.NutritionDTO;
 import com.chef.william.exception.BusinessException;
+import com.chef.william.exception.ResourceNotFoundException;
 import com.chef.william.model.Ingredient;
 import com.chef.william.model.IngredientStoreListing;
 import com.chef.william.model.Nutrition;
 import com.chef.william.model.enums.Nutrients;
 import com.chef.william.model.enums.Unit;
 import com.chef.william.repository.IngredientRepository;
+import com.chef.william.repository.IngredientStoreListingRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -24,6 +27,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -31,6 +35,9 @@ class IngredientServiceTest {
 
     @Mock
     private IngredientRepository ingredientRepository;
+
+    @Mock
+    private IngredientStoreListingRepository ingredientStoreListingRepository;
 
     @InjectMocks
     private IngredientService ingredientService;
@@ -153,6 +160,38 @@ class IngredientServiceTest {
         assertEquals(2, dto.getNearbyStoreListings().size());
         assertEquals("Near Shop", dto.getNearbyStoreListings().get(0).getStoreName());
         assertEquals("Far Supermarket", dto.getNearbyStoreListings().get(1).getStoreName());
+    }
+
+
+    @Test
+    void getIngredientStoreLocationsReturnsOnlyActiveListingsSortedByDistance() {
+        IngredientStoreListing far = new IngredientStoreListing();
+        far.setId(41L);
+        far.setStoreName("Far Market");
+        far.setDistanceKm(new BigDecimal("9.500"));
+
+        IngredientStoreListing near = new IngredientStoreListing();
+        near.setId(42L);
+        near.setStoreName("Near Supermarket");
+        near.setDistanceKm(new BigDecimal("1.200"));
+
+        when(ingredientRepository.existsById(9L)).thenReturn(true);
+        when(ingredientStoreListingRepository.findActiveListingsByIngredientId(eq(9L), any(LocalDateTime.class)))
+                .thenReturn(List.of(far, near));
+
+        List<IngredientStoreListingDTO> result = ingredientService.getIngredientStoreLocations(9L);
+
+        assertEquals(2, result.size());
+        assertEquals("Near Supermarket", result.get(0).getStoreName());
+        assertEquals("Far Market", result.get(1).getStoreName());
+    }
+
+    @Test
+    void getIngredientStoreLocationsThrowsWhenIngredientDoesNotExist() {
+        when(ingredientRepository.existsById(404L)).thenReturn(false);
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> ingredientService.getIngredientStoreLocations(404L));
     }
 
     @Test
