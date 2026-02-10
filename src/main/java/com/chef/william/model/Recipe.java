@@ -19,10 +19,16 @@ public class Recipe {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String title;
+    @Column(nullable = false, length = 200)
+    private String version;
 
     @Column(columnDefinition = "TEXT")
     private String description;
+
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "food_id")
+    private Food food;
 
     @OneToMany(mappedBy = "recipe", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<RecipeIngredient> recipeIngredients = new ArrayList<>();
