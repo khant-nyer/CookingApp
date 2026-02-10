@@ -22,4 +22,7 @@ public interface IngredientStoreListingRepository extends JpaRepository<Ingredie
     List<IngredientStoreListing> findActiveListingsByIngredientId(
             @Param("ingredientId") Long ingredientId,
             @Param("asOf") LocalDateTime asOf);
+    List<IngredientStoreListing> findByIngredientIdAndExpiresAtAfterOrderByDistanceKmAsc(
+            Long ingredientId,
+            LocalDateTime asOf);
 }
