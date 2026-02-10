@@ -12,7 +12,9 @@ import com.chef.william.model.enums.Unit;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -24,29 +26,46 @@ public class IngredientMapper {
         entity.setCategory(dto.getCategory());
         entity.setDescription(dto.getDescription());
         entity.setServingAmount(dto.getServingAmount());
-        entity.setServingUnit(dto.getServingUnit().getAbbreviation());
+
+        Unit servingUnit = dto.getServingUnit();
+        if (servingUnit == null) {
+            throw new BusinessException("Serving unit is required");
+        }
+        entity.setServingUnit(servingUnit.getAbbreviation());
+
+        if (entity.getNutritionList() == null) {
+            entity.setNutritionList(new ArrayList<>());
+        }
 
         if (dto.getNutrients() == null) {
             entity.getNutritionList().clear();
             return;
         }
 
-        Map<Nutrients, Nutrition> existingMap = entity.getNutritionList().stream()
-                .collect(Collectors.toMap(Nutrition::getNutrient, n -> n));
+        Map<Nutrients, Nutrition> existingMap = new HashMap<>();
+        entity.getNutritionList().stream()
+                .filter(n -> n.getNutrient() != null)
+                .forEach(n -> existingMap.putIfAbsent(n.getNutrient(), n));
 
         Set<Nutrients> dtoNutrientTypes = dto.getNutrients().stream()
                 .map(NutritionDTO::getNutrient)
+                .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
 
-        entity.getNutritionList().removeIf(n -> !dtoNutrientTypes.contains(n.getNutrient()));
+        entity.getNutritionList().removeIf(n -> n.getNutrient() == null || !dtoNutrientTypes.contains(n.getNutrient()));
 
         for (NutritionDTO nDto : dto.getNutrients()) {
+            if (nDto.getNutrient() == null) {
+                continue;
+            }
+
             Nutrition nutrition = existingMap.get(nDto.getNutrient());
 
             if (nutrition == null) {
                 nutrition = new Nutrition();
                 nutrition.setIngredient(entity);
                 entity.getNutritionList().add(nutrition);
+                existingMap.put(nDto.getNutrient(), nutrition);
             }
 
             nutrition.setNutrient(nDto.getNutrient());
