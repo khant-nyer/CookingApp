@@ -16,5 +16,6 @@ public class SupermarketDiscoveryDTO {
     private String catalogSearchUrl;
     private boolean ingredientMatched;
     private String matchSource;
+    private String discoverySource;
     private LocalDateTime checkedAt;
 }

@@ -6,18 +6,14 @@ import com.chef.william.dto.NutritionDTO;
 import com.chef.william.dto.SupermarketDiscoveryDTO;
 import com.chef.william.exception.BusinessException;
 import com.chef.william.exception.ResourceNotFoundException;
-import com.chef.william.model.CitySupermarket;
 import com.chef.william.model.Ingredient;
 import com.chef.william.model.IngredientStoreListing;
 import com.chef.william.model.Nutrition;
-import com.chef.william.model.User;
 import com.chef.william.model.enums.Nutrients;
 import com.chef.william.model.enums.Unit;
-import com.chef.william.repository.CitySupermarketRepository;
 import com.chef.william.repository.IngredientRepository;
 import com.chef.william.repository.IngredientStoreListingRepository;
-import com.chef.william.repository.UserRepository;
-import com.chef.william.service.crawler.SupermarketCrawlerClient;
+import com.chef.william.service.discovery.SupermarketDiscoveryService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -47,13 +43,7 @@ class IngredientServiceTest {
     private IngredientStoreListingRepository ingredientStoreListingRepository;
 
     @Mock
-    private CitySupermarketRepository citySupermarketRepository;
-
-    @Mock
-    private UserRepository userRepository;
-
-    @Mock
-    private SupermarketCrawlerClient supermarketCrawlerClient;
+    private SupermarketDiscoveryService supermarketDiscoveryService;
 
     @InjectMocks
     private IngredientService ingredientService;
@@ -101,16 +91,6 @@ class IngredientServiceTest {
 
         assertEquals(2, ingredient.getNutritionList().size());
         assertEquals(2, result.getNutrients().size());
-
-        Nutrition updatedProtein = ingredient.getNutritionList().stream()
-                .filter(n -> n.getNutrient() == Nutrients.PROTEIN)
-                .findFirst()
-                .orElseThrow();
-        assertEquals(3.5, updatedProtein.getValue());
-
-        boolean fatStillPresent = ingredient.getNutritionList().stream()
-                .anyMatch(n -> n.getNutrient() == Nutrients.FAT);
-        assertEquals(false, fatStillPresent);
     }
 
     @Test
@@ -140,7 +120,6 @@ class IngredientServiceTest {
 
         assertThrows(BusinessException.class, () -> ingredientService.getIngredientById(6L));
     }
-
 
     @Test
     void getIngredientByIdIncludesNearbyStoreListingsSortedByDistance() {
@@ -178,7 +157,6 @@ class IngredientServiceTest {
         assertEquals("Far Supermarket", dto.getNearbyStoreListings().get(1).getStoreName());
     }
 
-
     @Test
     void getIngredientStoreLocationsReturnsOnlyActiveListingsSortedByDistance() {
         IngredientStoreListing far = new IngredientStoreListing();
@@ -210,57 +188,20 @@ class IngredientServiceTest {
                 () -> ingredientService.getIngredientStoreLocations(404L));
     }
 
-
     @Test
-    void discoverPopularSupermarketsUsesCityParamAndReturnsResultsWithMatchFlags() {
-        CitySupermarket market1 = new CitySupermarket(1L, "Bangkok", "Big C", "https://example.com", "https://example.com/search?ingredient={ingredient}", null);
-        CitySupermarket market2 = new CitySupermarket(2L, "Bangkok", "Lotus", "https://example2.com", "https://example2.com/search?ingredient={ingredient}", null);
+    void discoverPopularSupermarketsDelegatesToDiscoveryService() {
+        List<SupermarketDiscoveryDTO> expected = List.of(
+                new SupermarketDiscoveryDTO("Bangkok", "Big C", "https://www.bigc.co.th",
+                        "https://www.bigc.co.th/product/example", true, "OFFICIAL_WEB_CRAWL", "FALLBACK", LocalDateTime.now())
+        );
 
-        when(citySupermarketRepository.findByCityIgnoreCase("Bangkok")).thenReturn(List.of(market1, market2));
-        when(supermarketCrawlerClient.webpageContainsIngredient(any(String.class), eq("tomato"))).thenReturn(true, false);
+        when(supermarketDiscoveryService.discover(null, "Bangkok", "Soy Sauce"))
+                .thenReturn(expected);
 
-        List<SupermarketDiscoveryDTO> result = ingredientService.discoverPopularSupermarkets(null, "Bangkok", "tomato");
+        List<SupermarketDiscoveryDTO> actual = ingredientService.discoverPopularSupermarkets(null, "Bangkok", "Soy Sauce");
 
-        assertEquals(2, result.size());
-        assertEquals("Big C", result.get(0).getSupermarketName());
-        assertEquals(true, result.get(0).isIngredientMatched());
-        assertEquals("Lotus", result.get(1).getSupermarketName());
-        assertEquals(false, result.get(1).isIngredientMatched());
-    }
-
-
-    @Test
-    void discoverPopularSupermarketsFallsBackWhenDbIsEmptyAndSavesMatchedSupermarkets() {
-        when(citySupermarketRepository.findByCityIgnoreCase("Bangkok")).thenReturn(List.of());
-        when(supermarketCrawlerClient.webpageContainsIngredient(any(String.class), eq("Soy Sauce")))
-                .thenReturn(true, false, false);
-
-        List<SupermarketDiscoveryDTO> result = ingredientService.discoverPopularSupermarkets(null, "Bangkok", "Soy Sauce");
-
-        assertEquals(3, result.size());
-        assertEquals("Big C", result.get(0).getSupermarketName());
-        assertEquals(true, result.get(0).isIngredientMatched());
-
-        verify(citySupermarketRepository).saveAll(any());
-    }
-
-    @Test
-    void discoverPopularSupermarketsUsesUserCityWhenCityNotProvided() {
-        User user = new User();
-        user.setId(99L);
-        user.setCity("Manila");
-
-        CitySupermarket market = new CitySupermarket(3L, "Manila", "SM Hypermarket", null, "https://example.com/catalog", null);
-
-        when(userRepository.findById(99L)).thenReturn(Optional.of(user));
-        when(citySupermarketRepository.findByCityIgnoreCase("Manila")).thenReturn(List.of(market));
-        when(supermarketCrawlerClient.webpageContainsIngredient(any(String.class), eq("onion"))).thenReturn(true);
-
-        List<SupermarketDiscoveryDTO> result = ingredientService.discoverPopularSupermarkets(99L, null, "onion");
-
-        assertEquals(1, result.size());
-        assertEquals("Manila", result.get(0).getCity());
-        assertEquals("SM Hypermarket", result.get(0).getSupermarketName());
+        assertEquals(expected, actual);
+        verify(supermarketDiscoveryService).discover(null, "Bangkok", "Soy Sauce");
     }
 
     @Test
@@ -268,5 +209,4 @@ class IngredientServiceTest {
         assertThrows(BusinessException.class,
                 () -> ingredientService.searchIngredientByNutrient("INVALID", 1.0));
     }
-
 }

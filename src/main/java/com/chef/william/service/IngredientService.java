@@ -16,16 +16,12 @@ import com.chef.william.model.User;
 import com.chef.william.repository.CitySupermarketRepository;
 import com.chef.william.repository.IngredientRepository;
 import com.chef.william.repository.IngredientStoreListingRepository;
-import com.chef.william.repository.UserRepository;
-import com.chef.william.service.crawler.SupermarketCrawlerClient;
+import com.chef.william.service.discovery.SupermarketDiscoveryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
@@ -40,9 +36,7 @@ public class IngredientService {
 
     private final IngredientRepository ingredientRepository;
     private final IngredientStoreListingRepository ingredientStoreListingRepository;
-    private final CitySupermarketRepository citySupermarketRepository;
-    private final UserRepository userRepository;
-    private final SupermarketCrawlerClient supermarketCrawlerClient;
+    private final SupermarketDiscoveryService supermarketDiscoveryService;
 
     @Transactional
     public IngredientDTO createIngredient(IngredientDTO dto) {
@@ -226,125 +220,7 @@ public class IngredientService {
 
     @Transactional
     public List<SupermarketDiscoveryDTO> discoverPopularSupermarkets(Long userId, String city, String ingredientName) {
-        if (ingredientName == null || ingredientName.trim().isEmpty()) {
-            throw new BusinessException("Ingredient name is required for supermarket discovery");
-        }
-
-        String effectiveCity = resolveCity(userId, city);
-        List<CitySupermarket> persistedMarkets = citySupermarketRepository.findByCityIgnoreCase(effectiveCity.trim());
-
-        List<CitySupermarket> discoveryMarkets = persistedMarkets.isEmpty()
-                ? getFallbackCitySupermarkets(effectiveCity)
-                : persistedMarkets;
-
-        List<SupermarketDiscoveryDTO> results = new ArrayList<>();
-        List<CitySupermarket> matchedFromFallback = new ArrayList<>();
-
-        for (CitySupermarket market : discoveryMarkets) {
-            String searchUrl = buildCatalogUrl(market.getCatalogSearchUrl(), ingredientName);
-            String crawlTarget = !searchUrl.isBlank() ? searchUrl : market.getOfficialWebsite();
-            boolean matched = supermarketCrawlerClient.webpageContainsIngredient(crawlTarget, ingredientName);
-
-            results.add(new SupermarketDiscoveryDTO(
-                    effectiveCity,
-                    market.getSupermarketName(),
-                    market.getOfficialWebsite(),
-                    crawlTarget,
-                    matched,
-                    matched ? "OFFICIAL_WEB_CRAWL" : "NO_MATCH_ON_CRAWL",
-                    LocalDateTime.now()
-            ));
-
-            if (persistedMarkets.isEmpty() && matched) {
-                matchedFromFallback.add(market);
-            }
-        }
-
-        if (!matchedFromFallback.isEmpty()) {
-            saveDiscoveredSupermarkets(effectiveCity, matchedFromFallback);
-        }
-
-        return results;
-    }
-
-    private void saveDiscoveredSupermarkets(String city, List<CitySupermarket> markets) {
-        List<CitySupermarket> toSave = markets.stream()
-                .filter(market -> !citySupermarketRepository
-                        .existsByCityIgnoreCaseAndSupermarketNameIgnoreCase(city, market.getSupermarketName()))
-                .peek(market -> market.setId(null))
-                .peek(market -> market.setCity(city))
-                .toList();
-
-        if (!toSave.isEmpty()) {
-            citySupermarketRepository.saveAll(toSave);
-        }
-    }
-
-    private List<CitySupermarket> getFallbackCitySupermarkets(String city) {
-        if (city == null) {
-            return List.of();
-        }
-
-        String normalizedCity = city.trim().toLowerCase(Locale.ROOT);
-        if (!"bangkok".equals(normalizedCity)) {
-            return List.of();
-        }
-
-        return Stream.of(
-                        fallbackSupermarket("Big C", "https://www.bigc.co.th",
-                                "https://www.bigc.co.th/product/golden-mountain-seasoning-sauce-oyster-sauce-double-pack-1-l-660-ml.79188"),
-                        fallbackSupermarket("Lotus's", "https://www.lotuss.com",
-                                "https://www.lotuss.com/th/search/{ingredient}"),
-                        fallbackSupermarket("Tops", "https://www.tops.co.th",
-                                "https://www.tops.co.th/en/search?query={ingredient}")
-                )
-                .peek(market -> market.setCity(city.trim()))
-                .toList();
-    }
-
-    private CitySupermarket fallbackSupermarket(String name, String website, String catalogUrl) {
-        CitySupermarket market = new CitySupermarket();
-        market.setSupermarketName(name);
-        market.setOfficialWebsite(website);
-        market.setCatalogSearchUrl(catalogUrl);
-        market.setNotes("Fallback popular supermarket seed");
-        return market;
-    }
-
-    private String resolveCity(Long userId, String city) {
-        if (city != null && !city.trim().isEmpty()) {
-            return city.trim();
-        }
-
-        if (userId == null) {
-            throw new BusinessException("City is required when userId is not provided");
-        }
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
-
-        if (user.getCity() == null || user.getCity().isBlank()) {
-            throw new BusinessException("User city is not set for user id: " + userId);
-        }
-
-        return user.getCity().trim();
-    }
-
-    private String buildCatalogUrl(String baseCatalogUrl, String ingredientName) {
-        if (baseCatalogUrl == null || baseCatalogUrl.isBlank()) {
-            return "";
-        }
-
-        String encodedIngredient = URLEncoder.encode(ingredientName.trim(), StandardCharsets.UTF_8);
-        if (baseCatalogUrl.contains("{ingredient}")) {
-            return baseCatalogUrl.replace("{ingredient}", encodedIngredient);
-        }
-
-        if (baseCatalogUrl.contains("?")) {
-            return baseCatalogUrl + "&q=" + encodedIngredient;
-        }
-
-        return baseCatalogUrl + "?q=" + encodedIngredient;
+        return supermarketDiscoveryService.discover(userId, city, ingredientName);
     }
 
     @Transactional(readOnly = true)

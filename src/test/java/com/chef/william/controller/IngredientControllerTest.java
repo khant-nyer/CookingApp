@@ -36,6 +36,7 @@ class IngredientControllerTest {
                         "https://bigc.example/search?q=tomato",
                         true,
                         "OFFICIAL_WEB_CRAWL",
+                        "DB",
                         LocalDateTime.now()
                 )));
 
@@ -71,6 +72,7 @@ class IngredientControllerTest {
                         "https://lotus.example/search?q=soy+sauce",
                         true,
                         "OFFICIAL_WEB_CRAWL",
+                        "DB",
                         LocalDateTime.now()
                 )));
 

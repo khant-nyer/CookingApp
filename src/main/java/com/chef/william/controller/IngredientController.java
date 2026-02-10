@@ -70,9 +70,7 @@ public class IngredientController {
             @PathVariable String ingredientName,
             @RequestParam(name = "city", required = false) String city,
             @RequestParam(name = "userId", required = false) Long userId) {
-        List<SupermarketDiscoveryDTO> results = ingredientService
-                .discoverPopularSupermarkets(userId, city, ingredientName);
-        return ResponseEntity.ok(results);
+        return discoverSupermarketsInternal(ingredientName, city, userId);
     }
 
     @GetMapping({"/discover-supermarkets", "/discover-supermarkets/", "discover-supermarkets"})
@@ -80,6 +78,13 @@ public class IngredientController {
             @RequestParam(name = "ingredientName") String ingredientName,
             @RequestParam(name = "city", required = false) String city,
             @RequestParam(name = "userId", required = false) Long userId) {
+        return discoverSupermarketsInternal(ingredientName, city, userId);
+    }
+
+    private ResponseEntity<List<SupermarketDiscoveryDTO>> discoverSupermarketsInternal(
+            String ingredientName,
+            String city,
+            Long userId) {
         List<SupermarketDiscoveryDTO> results = ingredientService
                 .discoverPopularSupermarkets(userId, city, ingredientName);
         return ResponseEntity.ok(results);
