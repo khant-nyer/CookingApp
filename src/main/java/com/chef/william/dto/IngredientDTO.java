@@ -36,4 +36,9 @@ public class IngredientDTO {
     private Unit servingUnit = Unit.G;
 
     private List<NutritionDTO> nutrients = new ArrayList<>();
+
+
+    // Cached location-aware store matches for this ingredient.
+    // This list is response-oriented and usually refreshed by an external provider.
+    private List<IngredientStoreListingDTO> nearbyStoreListings = new ArrayList<>();
 }

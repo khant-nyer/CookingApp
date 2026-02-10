@@ -9,7 +9,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -27,6 +26,10 @@ public class RecipeDTO {
 
     @Size(max = 5000, message = "Description must not exceed 5000 characters")
     private String description;
+
+    private Long foodId;
+
+    private String foodName;
 
     @NotEmpty(message = "At least one ingredient is required")
     @Valid
