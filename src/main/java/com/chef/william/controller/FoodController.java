@@ -2,7 +2,9 @@ package com.chef.william.controller;
 
 import com.chef.william.dto.FoodDTO;
 import com.chef.william.dto.FoodRecipeStatusDTO;
+import com.chef.william.dto.RecipeDTO;
 import com.chef.william.service.FoodService;
+import com.chef.william.service.RecipeService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -17,6 +19,7 @@ import java.util.List;
 public class FoodController {
 
     private final FoodService foodService;
+    private final RecipeService recipeService;
 
     @PostMapping
     public ResponseEntity<FoodDTO> create(@Valid @RequestBody FoodDTO dto) {
@@ -47,5 +50,12 @@ public class FoodController {
     @GetMapping("/{id}/recipe-status")
     public ResponseEntity<FoodRecipeStatusDTO> recipeStatus(@PathVariable Long id) {
         return ResponseEntity.ok(foodService.getFoodRecipeStatus(id));
+    }
+
+    @PostMapping("/{id}/recipes")
+    public ResponseEntity<RecipeDTO> createRecipeForFood(@PathVariable Long id,
+                                                          @Valid @RequestBody RecipeDTO recipeDTO) {
+        recipeDTO.setFoodId(id);
+        return ResponseEntity.status(HttpStatus.CREATED).body(recipeService.createRecipe(recipeDTO));
     }
 }
