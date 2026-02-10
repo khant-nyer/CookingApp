@@ -6,11 +6,14 @@ import com.chef.william.dto.SupermarketDiscoveryDTO;
 import com.chef.william.dto.IngredientStoreListingDTO;
 import com.chef.william.exception.ResourceNotFoundException;
 import com.chef.william.exception.BusinessException;
+import com.chef.william.model.CitySupermarket;
 import com.chef.william.model.Ingredient;
 import com.chef.william.model.IngredientStoreListing;
 import com.chef.william.model.enums.Nutrients;
 import com.chef.william.model.Nutrition;
 import com.chef.william.model.enums.Unit;
+import com.chef.william.model.User;
+import com.chef.william.repository.CitySupermarketRepository;
 import com.chef.william.repository.IngredientRepository;
 import com.chef.william.repository.IngredientStoreListingRepository;
 import com.chef.william.service.discovery.SupermarketDiscoveryService;
@@ -21,9 +24,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
