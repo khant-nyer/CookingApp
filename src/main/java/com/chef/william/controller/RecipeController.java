@@ -23,6 +23,14 @@ public class RecipeController {
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
+    @PostMapping("/foods/{foodId}")
+    public ResponseEntity<RecipeDTO> createForFood(@PathVariable Long foodId,
+                                                   @Valid @RequestBody RecipeDTO recipeDTO) {
+        recipeDTO.setFoodId(foodId);
+        RecipeDTO created = recipeService.createRecipe(recipeDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<RecipeDTO> getById(@PathVariable Long id) {
         RecipeDTO dto = recipeService.getRecipeById(id);
