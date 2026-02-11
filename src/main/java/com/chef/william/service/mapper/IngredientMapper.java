@@ -42,16 +42,19 @@ public class IngredientMapper {
             return;
         }
 
+        //load every nutrition objects from db and map them with nutrients(enum)
         Map<Nutrients, Nutrition> existingMap = new HashMap<>();
         entity.getNutritionList().stream()
                 .filter(n -> n.getNutrient() != null)
                 .forEach(n -> existingMap.putIfAbsent(n.getNutrient(), n));
 
+        //retrieving nutrients from dto(client)
         Set<Nutrients> dtoNutrientTypes = dto.getNutritionList().stream()
                 .map(NutritionDTO::getNutrient)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
 
+        //filtering nutrition objects that are loaded from db based on nutrients that comes from dto(client)
         entity.getNutritionList().removeIf(n -> n.getNutrient() == null || !dtoNutrientTypes.contains(n.getNutrient()));
 
         for (NutritionDTO nDto : dto.getNutritionList()) {
