@@ -79,7 +79,7 @@ class IngredientServiceTest {
         update.setDescription("Fresh");
         update.setServingAmount(100.0);
         update.setServingUnit(Unit.G);
-        update.setNutrients(List.of(
+        update.setNutritionList(List.of(
                 new NutritionDTO(null, Nutrients.PROTEIN, 3.5, "g"),
                 new NutritionDTO(null, Nutrients.CALORIES, 18.0, "kcal")
         ));
@@ -90,7 +90,7 @@ class IngredientServiceTest {
         IngredientDTO result = ingredientService.updateIngredient(1L, update);
 
         assertEquals(2, ingredient.getNutritionList().size());
-        assertEquals(2, result.getNutrients().size());
+        assertEquals(2, result.getNutritionList().size());
     }
 
     @Test

@@ -35,7 +35,7 @@ public class IngredientDTO {
     @NotNull(message = "Serving unit is required")
     private Unit servingUnit = Unit.G;
 
-    private List<NutritionDTO> nutrients = new ArrayList<>();
+    private List<NutritionDTO> nutritionList = new ArrayList<>();
 
 
     // Cached location-aware store matches for this ingredient.

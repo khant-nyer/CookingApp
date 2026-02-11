@@ -37,7 +37,7 @@ public class IngredientMapper {
             entity.setNutritionList(new ArrayList<>());
         }
 
-        if (dto.getNutrients() == null) {
+        if (dto.getNutritionList() == null) {
             entity.getNutritionList().clear();
             return;
         }
@@ -47,14 +47,14 @@ public class IngredientMapper {
                 .filter(n -> n.getNutrient() != null)
                 .forEach(n -> existingMap.putIfAbsent(n.getNutrient(), n));
 
-        Set<Nutrients> dtoNutrientTypes = dto.getNutrients().stream()
+        Set<Nutrients> dtoNutrientTypes = dto.getNutritionList().stream()
                 .map(NutritionDTO::getNutrient)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
 
         entity.getNutritionList().removeIf(n -> n.getNutrient() == null || !dtoNutrientTypes.contains(n.getNutrient()));
 
-        for (NutritionDTO nDto : dto.getNutrients()) {
+        for (NutritionDTO nDto : dto.getNutritionList()) {
             if (nDto.getNutrient() == null) {
                 continue;
             }
@@ -89,11 +89,11 @@ public class IngredientMapper {
         dto.setServingUnit(servingUnit);
 
         if (entity.getNutritionList() != null) {
-            dto.setNutrients(entity.getNutritionList().stream()
+            dto.setNutritionList(entity.getNutritionList().stream()
                     .map(n -> new NutritionDTO(n.getId(), n.getNutrient(), n.getValue(), n.getUnit()))
                     .collect(Collectors.toList()));
         } else {
-            dto.setNutrients(new ArrayList<>());
+            dto.setNutritionList(new ArrayList<>());
         }
 
         if (entity.getStoreListings() != null) {

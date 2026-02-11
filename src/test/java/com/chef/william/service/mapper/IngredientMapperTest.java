@@ -42,7 +42,7 @@ class IngredientMapperTest {
         dto.setName("Egg");
         dto.setServingAmount(100.0);
         dto.setServingUnit(Unit.G);
-        dto.setNutrients(List.of(new NutritionDTO(null, Nutrients.PROTEIN, 12.3, "g")));
+        dto.setNutritionList(List.of(new NutritionDTO(null, Nutrients.PROTEIN, 12.3, "g")));
 
         assertDoesNotThrow(() -> ingredientMapper.updateEntityFromDto(dto, entity));
         assertEquals(1, entity.getNutritionList().size());
