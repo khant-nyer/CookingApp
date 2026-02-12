@@ -10,6 +10,7 @@ import com.chef.william.model.Food;
 import com.chef.william.model.Recipe;
 import com.chef.william.repository.FoodRepository;
 import com.chef.william.repository.RecipeRepository;
+import com.chef.william.service.mapper.RecipeMapper;
 import com.chef.william.model.enums.Unit;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -40,6 +41,9 @@ class FoodServiceTest {
     @Mock
     private RecipeRepository recipeRepository;
 
+    @Mock
+    private RecipeMapper recipeMapper;
+
     @InjectMocks
     private FoodService foodService;
 
@@ -65,15 +69,23 @@ class FoodServiceTest {
         food.setId(10L);
         food.setName("Pad Thai");
         food.setCategory("Noodle");
-        food.setRecipes(List.of(new Recipe()));
+        Recipe recipe = new Recipe();
+        recipe.setId(2L);
+        recipe.setVersion("v1");
+        food.setRecipes(List.of(recipe));
+
+        RecipeDTO recipeDTO = RecipeDTO.builder().id(2L).version("v1").build();
 
         when(foodRepository.save(any(Food.class))).thenReturn(food);
         when(recipeRepository.countByFoodId(10L)).thenReturn(1);
+        when(recipeMapper.toDto(recipe)).thenReturn(recipeDTO);
 
         FoodDTO result = foodService.createFood(new FoodDTO(null, "Pad Thai", "Noodle", null, List.of()));
 
         assertEquals(10L, result.getId());
         assertEquals(1, result.getRecipeCount());
+        assertEquals(1, result.getRecipes().size());
+        assertEquals(2L, result.getRecipes().get(0).getId());
     }
 
     @Test
