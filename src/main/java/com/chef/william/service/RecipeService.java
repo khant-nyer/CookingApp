@@ -1,6 +1,7 @@
 package com.chef.william.service;
 
 import com.chef.william.dto.RecipeDTO;
+import com.chef.william.exception.DuplicateResourceException;
 import com.chef.william.exception.ResourceNotFoundException;
 import com.chef.william.model.Food;
 import com.chef.william.model.Recipe;
@@ -25,6 +26,8 @@ public class RecipeService {
 
     @Transactional
     public RecipeDTO createRecipe(RecipeDTO recipeDTO) {
+        validateUniqueVersionForCreate(recipeDTO.getVersion());
+
         Recipe recipe = new Recipe();
         populateScalars(recipe, recipeDTO);
         recipeMergeService.mergeIngredients(recipe, recipeDTO);
@@ -38,6 +41,7 @@ public class RecipeService {
         Recipe recipe = recipeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Recipe not found with id: " + id));
 
+        validateUniqueVersionForUpdate(recipe, recipeDTO.getVersion());
         populateScalars(recipe, recipeDTO);
         recipeMergeService.mergeIngredients(recipe, recipeDTO);
         recipeMergeService.mergeInstructions(recipe, recipeDTO);
@@ -65,6 +69,20 @@ public class RecipeService {
             throw new ResourceNotFoundException("Recipe not found with id: " + id);
         }
         recipeRepository.deleteById(id);
+    }
+
+    private void validateUniqueVersionForCreate(String version) {
+        if (version != null && recipeRepository.existsByVersion(version)) {
+            throw new DuplicateResourceException("Recipe", "version", version);
+        }
+    }
+
+    private void validateUniqueVersionForUpdate(Recipe existingRecipe, String version) {
+        if (version != null
+                && !version.equals(existingRecipe.getVersion())
+                && recipeRepository.existsByVersion(version)) {
+            throw new DuplicateResourceException("Recipe", "version", version);
+        }
     }
 
     private void populateScalars(Recipe recipe, RecipeDTO dto) {

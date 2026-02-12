@@ -19,7 +19,7 @@ public class Recipe {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 200)
+    @Column(nullable = false, length = 200, unique = true)
     private String version;
 
     @Column(columnDefinition = "TEXT")
