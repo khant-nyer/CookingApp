@@ -1,6 +1,7 @@
 package com.chef.william.service;
 
 import com.chef.william.dto.RecipeDTO;
+import com.chef.william.exception.DuplicateResourceException;
 import com.chef.william.exception.ResourceNotFoundException;
 import com.chef.william.model.Food;
 import com.chef.william.model.Recipe;
@@ -56,6 +57,17 @@ class RecipeServiceTest {
     }
 
     @Test
+    void createRecipeThrowsWhenVersionAlreadyExists() {
+        RecipeDTO dto = new RecipeDTO();
+        dto.setVersion("v1");
+
+        when(recipeRepository.existsByVersion("v1")).thenReturn(true);
+
+        assertThrows(DuplicateResourceException.class, () -> recipeService.createRecipe(dto));
+        verify(recipeRepository, never()).save(any());
+    }
+
+    @Test
     void createRecipeAssignsFoodWhenFoodIdProvided() {
         Food food = new Food();
         food.setId(7L);
@@ -66,6 +78,7 @@ class RecipeServiceTest {
         dto.setDescription("Classic");
         dto.setFoodId(7L);
 
+        when(recipeRepository.existsByVersion("v1")).thenReturn(false);
         when(foodRepository.findById(7L)).thenReturn(Optional.of(food));
         when(recipeRepository.save(any(Recipe.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(recipeMapper.toDto(any(Recipe.class))).thenReturn(new RecipeDTO());
@@ -74,5 +87,21 @@ class RecipeServiceTest {
 
         verify(recipeMergeService).mergeIngredients(any(Recipe.class), any(RecipeDTO.class));
         verify(recipeMergeService).mergeInstructions(any(Recipe.class), any(RecipeDTO.class));
+    }
+
+    @Test
+    void updateRecipeThrowsWhenChangingToExistingVersion() {
+        Recipe existingRecipe = new Recipe();
+        existingRecipe.setId(1L);
+        existingRecipe.setVersion("v1");
+
+        RecipeDTO update = new RecipeDTO();
+        update.setVersion("v2");
+
+        when(recipeRepository.findById(1L)).thenReturn(Optional.of(existingRecipe));
+        when(recipeRepository.existsByVersion("v2")).thenReturn(true);
+
+        assertThrows(DuplicateResourceException.class, () -> recipeService.updateRecipe(1L, update));
+        verify(recipeRepository, never()).save(any());
     }
 }

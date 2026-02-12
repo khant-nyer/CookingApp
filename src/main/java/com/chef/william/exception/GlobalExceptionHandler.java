@@ -67,12 +67,19 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
-        log.error("Data integrity violation: {}", ex.getMostSpecificCause() != null
+        String detailedMessage = ex.getMostSpecificCause() != null
                 ? ex.getMostSpecificCause().getMessage()
-                : ex.getMessage());
+                : ex.getMessage();
+        log.error("Data integrity violation: {}", detailedMessage);
+
+        String clientMessage = "Data conflict detected. Please verify unique fields and constraints.";
+        if (detailedMessage != null && detailedMessage.toLowerCase().contains("version")) {
+            clientMessage = "Recipe version already exists. Please use a unique version.";
+        }
+
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.CONFLICT.value(),
-                "Data conflict detected. Please verify unique fields and constraints.",
+                clientMessage,
                 LocalDateTime.now()
         );
         return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
