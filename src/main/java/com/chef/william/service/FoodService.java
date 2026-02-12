@@ -9,6 +9,7 @@ import com.chef.william.exception.ResourceNotFoundException;
 import com.chef.william.model.Food;
 import com.chef.william.repository.FoodRepository;
 import com.chef.william.repository.RecipeRepository;
+import com.chef.william.service.mapper.RecipeMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +23,7 @@ public class FoodService {
     private final FoodRepository foodRepository;
     private final RecipeService recipeService;
     private final RecipeRepository recipeRepository;
+    private final RecipeMapper recipeMapper;
 
     @Transactional
     public FoodDTO createFood(FoodDTO dto) {
@@ -98,7 +100,10 @@ public class FoodService {
 
     private FoodDTO mapToDto(Food food) {
         int recipeCount = recipeRepository.countByFoodId(food.getId());
-        return new FoodDTO(food.getId(), food.getName(), food.getCategory(), recipeCount, List.of());
+        List<RecipeDTO> recipes = food.getRecipes() == null
+                ? List.of()
+                : food.getRecipes().stream().map(recipeMapper::toDto).toList();
+        return new FoodDTO(food.getId(), food.getName(), food.getCategory(), recipeCount, recipes);
     }
 
     private void createRecipeVersions(Long foodId, List<RecipeDTO> recipes) {
