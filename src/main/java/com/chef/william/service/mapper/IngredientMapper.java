@@ -42,19 +42,23 @@ public class IngredientMapper {
             return;
         }
 
-        //load every nutrition objects from db and map them with nutrients(enum)
+        //on create: entity.getNutritionList() is empty -> map is empty → all will be new inserts
+        //on update: load every nutrition objects from db and map them with nutrients(enum)
         Map<Nutrients, Nutrition> existingMap = new HashMap<>();
         entity.getNutritionList().stream()
                 .filter(n -> n.getNutrient() != null)
                 .forEach(n -> existingMap.putIfAbsent(n.getNutrient(), n));
 
         //retrieving nutrients from dto(client)
+        // Determine which nutrient types are present in the incoming DTO
+        // (used to detect removals on update; ignored on create since list is empty)
         Set<Nutrients> dtoNutrientTypes = dto.getNutritionList().stream()
                 .map(NutritionDTO::getNutrient)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
 
-        //filtering nutrition objects that are loaded from db based on nutrients that comes from dto(client)
+        //on update: filtering nutrition objects that are loaded from db based on nutrients that comes from dto(client)
+        //on create: no effect (list is empty)
         entity.getNutritionList().removeIf(n -> n.getNutrient() == null || !dtoNutrientTypes.contains(n.getNutrient()));
 
         for (NutritionDTO nDto : dto.getNutritionList()) {
