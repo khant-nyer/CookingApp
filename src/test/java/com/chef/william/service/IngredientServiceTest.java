@@ -100,12 +100,14 @@ class IngredientServiceTest {
         ingredient.setName("Salt");
         ingredient.setServingAmount(100.0);
         ingredient.setServingUnit("g");
+        ingredient.setImageUrl("https://img.example/salt.jpg");
 
         when(ingredientRepository.findById(5L)).thenReturn(Optional.of(ingredient));
 
         IngredientDTO dto = ingredientService.getIngredientById(5L);
 
         assertEquals(Unit.G, dto.getServingUnit());
+        assertEquals("https://img.example/salt.jpg", dto.getImageUrl());
     }
 
     @Test

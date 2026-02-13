@@ -76,7 +76,7 @@ class FoodControllerTest {
 
     @Test
     void createFoodShouldStillWorkWithoutRecipes() throws Exception {
-        FoodDTO response = new FoodDTO(1L, "Tom Yum", "Soup", 0, List.of());
+        FoodDTO response = new FoodDTO(1L, "Tom Yum", "Soup", "https://img.example/tom-yum.jpg", 0, List.of());
         when(foodService.createFood(any(FoodDTO.class))).thenReturn(response);
 
         mockMvc.perform(post("/api/foods")
@@ -89,6 +89,7 @@ class FoodControllerTest {
                                 """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value("Tom Yum"))
-                .andExpect(jsonPath("$.recipeCount").value(0));
+                .andExpect(jsonPath("$.recipeCount").value(0))
+                .andExpect(jsonPath("$.imageUrl").value("https://img.example/tom-yum.jpg"));
     }
 }

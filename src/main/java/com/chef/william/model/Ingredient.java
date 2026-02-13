@@ -26,6 +26,9 @@ public class Ingredient {
 
     private String description;
 
+    @Column(length = 1000)
+    private String imageUrl;
+
     // Base serving: All nutrition values are defined per this amount/unit
     @Column(nullable = false)
     private Double servingAmount = 100.0;  // e.g., 100.0

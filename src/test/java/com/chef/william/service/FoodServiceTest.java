@@ -69,6 +69,7 @@ class FoodServiceTest {
         food.setId(10L);
         food.setName("Pad Thai");
         food.setCategory("Noodle");
+        food.setImageUrl("https://img.example/pad-thai.jpg");
         Recipe recipe = new Recipe();
         recipe.setId(2L);
         recipe.setVersion("v1");
@@ -80,12 +81,13 @@ class FoodServiceTest {
         when(recipeRepository.countByFoodId(10L)).thenReturn(1);
         when(recipeMapper.toDto(recipe)).thenReturn(recipeDTO);
 
-        FoodDTO result = foodService.createFood(new FoodDTO(null, "Pad Thai", "Noodle", null, List.of()));
+        FoodDTO result = foodService.createFood(new FoodDTO(null, "Pad Thai", "Noodle", "https://img.example/pad-thai.jpg", null, List.of()));
 
         assertEquals(10L, result.getId());
         assertEquals(1, result.getRecipeCount());
         assertEquals(1, result.getRecipes().size());
         assertEquals(2L, result.getRecipes().get(0).getId());
+        assertEquals("https://img.example/pad-thai.jpg", result.getImageUrl());
     }
 
     @Test
@@ -105,7 +107,7 @@ class FoodServiceTest {
         when(foodRepository.save(any(Food.class))).thenReturn(food);
         when(recipeRepository.countByFoodId(12L)).thenReturn(1);
 
-        foodService.createFood(new FoodDTO(null, "Som Tum", "Salad", null, List.of(recipeDTO)));
+        foodService.createFood(new FoodDTO(null, "Som Tum", "Salad", "https://img.example/som-tum.jpg", null, List.of(recipeDTO)));
 
         verify(recipeService).createRecipe(any(RecipeDTO.class));
     }
@@ -115,7 +117,7 @@ class FoodServiceTest {
         when(foodRepository.existsByNameIgnoreCase("Ramen")).thenReturn(true);
 
         assertThrows(DuplicateResourceException.class,
-                () -> foodService.createFood(new FoodDTO(null, "Ramen", "Noodle", null, List.of())));
+                () -> foodService.createFood(new FoodDTO(null, "Ramen", "Noodle", "https://img.example/ramen.jpg", null, List.of())));
 
         verify(foodRepository, never()).save(any(Food.class));
     }

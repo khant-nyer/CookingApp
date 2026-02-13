@@ -23,6 +23,9 @@ public class FoodDTO {
     @Size(max = 100, message = "Category must not exceed 100 characters")
     private String category;
 
+    @Size(max = 1000, message = "Image URL must not exceed 1000 characters")
+    private String imageUrl;
+
     private Integer recipeCount;
 
     @Valid

@@ -92,6 +92,7 @@ public class FoodService {
     private void mapToEntity(FoodDTO dto, Food entity) {
         entity.setName(normalizeName(dto.getName()));
         entity.setCategory(dto.getCategory());
+        entity.setImageUrl(dto.getImageUrl());
     }
 
     private String normalizeName(String name) {
@@ -103,7 +104,7 @@ public class FoodService {
         List<RecipeDTO> recipes = food.getRecipes() == null
                 ? List.of()
                 : food.getRecipes().stream().map(recipeMapper::toDto).toList();
-        return new FoodDTO(food.getId(), food.getName(), food.getCategory(), recipeCount, recipes);
+        return new FoodDTO(food.getId(), food.getName(), food.getCategory(), food.getImageUrl(), recipeCount, recipes);
     }
 
     private void createRecipeVersions(Long foodId, List<RecipeDTO> recipes) {
