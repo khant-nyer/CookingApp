@@ -42,11 +42,13 @@ class IngredientMapperTest {
         dto.setName("Egg");
         dto.setServingAmount(100.0);
         dto.setServingUnit(Unit.G);
+        dto.setImageUrl("https://img.example/egg.jpg");
         dto.setNutritionList(List.of(new NutritionDTO(null, Nutrients.PROTEIN, 12.3, "g")));
 
         assertDoesNotThrow(() -> ingredientMapper.updateEntityFromDto(dto, entity));
         assertEquals(1, entity.getNutritionList().size());
         assertEquals(12.3, entity.getNutritionList().get(0).getValue());
+        assertEquals("https://img.example/egg.jpg", entity.getImageUrl());
     }
 
     @Test

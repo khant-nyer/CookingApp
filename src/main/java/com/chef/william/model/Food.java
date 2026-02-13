@@ -25,6 +25,9 @@ public class Food {
     @Column(length = 100)
     private String category;
 
+    @Column(length = 1000)
+    private String imageUrl;
+
     @OneToMany(mappedBy = "food", fetch = FetchType.LAZY)
     private List<Recipe> recipes = new ArrayList<>();
 }

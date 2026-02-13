@@ -28,6 +28,9 @@ public class IngredientDTO {
     @Size(max = 500, message = "Description must not exceed 500 characters")
     private String description;
 
+    @Size(max = 1000, message = "Image URL must not exceed 1000 characters")
+    private String imageUrl;
+
     @NotNull(message = "Serving amount is required")
     @Positive(message = "Serving amount must be positive")
     private Double servingAmount = 100.0;
