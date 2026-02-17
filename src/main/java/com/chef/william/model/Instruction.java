@@ -29,7 +29,7 @@ public class Instruction {
     private String description;
 
     @Column(name = "tutorial_video_url", length = 500)
-    private String tutorialVideoUrl;  // Fixed typo: "Vid" -> "Video"
+    private String tutorialVideoUrl;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "recipe_id", nullable = false)
