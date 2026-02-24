@@ -45,22 +45,43 @@ class SupermarketDiscoveryServiceIntegrationTest {
         citySupermarketRepository.deleteAll();
 
         when(supermarketCrawlerClient.webpageContainsIngredient(anyString(), eq("Soy Sauce")))
-                .thenReturn(true, false, false, true);
+                .thenReturn(false, false, false, true, false, false);
 
         List<SupermarketDiscoveryDTO> first = discoveryService.discover(null, "Bangkok", "Soy Sauce");
 
         assertEquals(3, first.size());
         assertTrue(first.stream().anyMatch(SupermarketDiscoveryDTO::isIngredientMatched));
+        assertTrue(first.stream().allMatch(dto -> dto.getMatchSource().equals("CATALOG_URL_QUERY_MATCH")));
 
         List<CitySupermarket> persisted = citySupermarketRepository.findByCityIgnoreCase("Bangkok");
-        assertEquals(1, persisted.size());
-        assertEquals("Big C", persisted.get(0).getSupermarketName());
+        assertEquals(3, persisted.size());
 
         List<SupermarketDiscoveryDTO> second = discoveryService.discover(null, "Bangkok", "Soy Sauce");
-        assertEquals(1, second.size());
-        assertEquals("Big C", second.get(0).getSupermarketName());
-        assertEquals("DB", second.get(0).getDiscoverySource());
+        assertEquals(3, second.size());
+        assertTrue(second.stream().allMatch(dto -> dto.getDiscoverySource().equals("DB")));
+        assertTrue(second.stream().anyMatch(dto -> dto.getMatchSource().equals("OFFICIAL_WEB_CRAWL")));
 
-        verify(supermarketCrawlerClient, times(4)).webpageContainsIngredient(anyString(), eq("Soy Sauce"));
+        verify(supermarketCrawlerClient, times(6)).webpageContainsIngredient(anyString(), eq("Soy Sauce"));
     }
+
+    @Test
+    void fallbackDiscoveryShouldUseGenericSeedsWhenCityIsNotConfigured() {
+        citySupermarketRepository.deleteAll();
+
+        when(supermarketCrawlerClient.webpageContainsIngredient(anyString(), eq("Sunflower Oil")))
+                .thenReturn(false, false, false);
+
+        List<SupermarketDiscoveryDTO> results = discoveryService.discover(null, "Manila", "Sunflower Oil");
+
+        assertEquals(3, results.size());
+        assertTrue(results.stream().allMatch(SupermarketDiscoveryDTO::isIngredientMatched));
+        assertTrue(results.stream().allMatch(dto -> dto.getCity().equals("Manila")));
+        assertTrue(results.stream().allMatch(dto -> dto.getDiscoverySource().equals("FALLBACK")));
+
+        List<CitySupermarket> persisted = citySupermarketRepository.findByCityIgnoreCase("Manila");
+        assertEquals(3, persisted.size());
+
+        verify(supermarketCrawlerClient, times(3)).webpageContainsIngredient(anyString(), eq("Sunflower Oil"));
+    }
+
 }

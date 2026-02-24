@@ -17,8 +17,11 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -49,7 +52,11 @@ public class SupermarketDiscoveryService {
         for (CitySupermarket market : discoveryMarkets) {
             String searchUrl = buildCatalogUrl(market.getCatalogSearchUrl(), ingredientName);
             String crawlTarget = !searchUrl.isBlank() ? searchUrl : market.getOfficialWebsite();
-            boolean matched = supermarketCrawlerClient.webpageContainsIngredient(crawlTarget, ingredientName);
+            boolean crawlMatched = supermarketCrawlerClient.webpageContainsIngredient(crawlTarget, ingredientName);
+            boolean urlMatched = urlContainsIngredient(crawlTarget, ingredientName);
+            boolean matched = crawlMatched || urlMatched;
+            String matchSource = crawlMatched ? "OFFICIAL_WEB_CRAWL"
+                    : (urlMatched ? "CATALOG_URL_QUERY_MATCH" : "NO_MATCH_ON_CRAWL");
 
             results.add(new SupermarketDiscoveryDTO(
                     effectiveCity,
@@ -57,7 +64,7 @@ public class SupermarketDiscoveryService {
                     market.getOfficialWebsite(),
                     crawlTarget,
                     matched,
-                    matched ? "OFFICIAL_WEB_CRAWL" : "NO_MATCH_ON_CRAWL",
+                    matchSource,
                     usingFallback ? "FALLBACK" : "DB",
                     LocalDateTime.now()
             ));
@@ -113,8 +120,15 @@ public class SupermarketDiscoveryService {
     private List<CitySupermarket> getFallbackCitySupermarkets(String city) {
         String normalizedCity = city == null ? "" : city.trim().toLowerCase(Locale.ROOT);
 
-        return discoveryProperties.getFallbackMarkets().stream()
+        List<SupermarketDiscoveryProperties.FallbackMarket> citySpecific = discoveryProperties.getFallbackMarkets().stream()
                 .filter(entry -> entry.getCity() != null && entry.getCity().trim().toLowerCase(Locale.ROOT).equals(normalizedCity))
+                .toList();
+
+        List<SupermarketDiscoveryProperties.FallbackMarket> seeds = citySpecific.isEmpty()
+                ? deduplicateFallbackMarkets(discoveryProperties.getFallbackMarkets())
+                : citySpecific;
+
+        return seeds.stream()
                 .map(entry -> {
                     CitySupermarket market = new CitySupermarket();
                     market.setCity(city.trim());
@@ -125,6 +139,18 @@ public class SupermarketDiscoveryService {
                     return market;
                 })
                 .toList();
+    }
+
+    private List<SupermarketDiscoveryProperties.FallbackMarket> deduplicateFallbackMarkets(
+            List<SupermarketDiscoveryProperties.FallbackMarket> fallbackMarkets) {
+        Map<String, SupermarketDiscoveryProperties.FallbackMarket> deduplicated = new LinkedHashMap<>();
+        for (SupermarketDiscoveryProperties.FallbackMarket market : fallbackMarkets) {
+            String key = (market.getSupermarketName() == null ? "" : market.getSupermarketName().trim().toLowerCase(Locale.ROOT))
+                    + "|"
+                    + (market.getOfficialWebsite() == null ? "" : market.getOfficialWebsite().trim().toLowerCase(Locale.ROOT));
+            deduplicated.putIfAbsent(key, market);
+        }
+        return deduplicated.values().stream().toList();
     }
 
     private void saveDiscoveredSupermarkets(String city, List<CitySupermarket> markets) {
@@ -138,5 +164,26 @@ public class SupermarketDiscoveryService {
         if (!toSave.isEmpty()) {
             citySupermarketRepository.saveAll(toSave);
         }
+    }
+
+    private boolean urlContainsIngredient(String url, String ingredientName) {
+        if (url == null || url.isBlank() || ingredientName == null || ingredientName.isBlank()) {
+            return false;
+        }
+
+        String normalizedUrl = normalizeForMatch(url);
+        return Stream.of(ingredientName.trim().split("\\s+"))
+                .map(this::normalizeForMatch)
+                .filter(token -> !token.isBlank())
+                .allMatch(normalizedUrl::contains);
+    }
+
+    private String normalizeForMatch(String value) {
+        return value == null
+                ? ""
+                : value.toLowerCase(Locale.ROOT)
+                .replace("+", " ")
+                .replace("%20", " ")
+                .replaceAll("[^a-z0-9]+", " ");
     }
 }
