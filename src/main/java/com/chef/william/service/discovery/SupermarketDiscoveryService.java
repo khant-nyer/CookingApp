@@ -1,10 +1,13 @@
 package com.chef.william.service.discovery;
 
+import com.chef.william.config.CityDiscoveryProperties;
 import com.chef.william.dto.SupermarketDiscoveryDTO;
 import com.chef.william.exception.BusinessException;
 import com.chef.william.model.CitySupermarket;
 import com.chef.william.repository.CitySupermarketRepository;
 import com.chef.william.service.crawler.SupermarketCrawlerClient;
+import com.chef.william.service.discovery.provider.CityDiscoveryCandidate;
+import com.chef.william.service.discovery.provider.CityDiscoveryProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,7 +16,6 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.Stream;
@@ -24,6 +26,8 @@ public class SupermarketDiscoveryService {
 
     private final CitySupermarketRepository citySupermarketRepository;
     private final SupermarketCrawlerClient supermarketCrawlerClient;
+    private final CityDiscoveryProvider cityDiscoveryProvider;
+    private final CityDiscoveryProperties cityDiscoveryProperties;
 
     @Transactional
     public List<SupermarketDiscoveryDTO> discover(String city, String ingredientName) {
@@ -33,6 +37,10 @@ public class SupermarketDiscoveryService {
 
         String effectiveCity = resolveCity(city);
         List<CitySupermarket> persistedMarkets = citySupermarketRepository.findByCityIgnoreCase(effectiveCity.trim());
+
+        if (persistedMarkets.isEmpty()) {
+            persistedMarkets = discoverAndPersistCityMarkets(effectiveCity);
+        }
 
         if (persistedMarkets.isEmpty()) {
             throw new BusinessException("No verified supermarkets found for city: " + effectiveCity);
@@ -63,6 +71,40 @@ public class SupermarketDiscoveryService {
         }
 
         return results;
+    }
+
+    private List<CitySupermarket> discoverAndPersistCityMarkets(String city) {
+        List<CityDiscoveryCandidate> candidates = cityDiscoveryProvider.discoverSupermarkets(city);
+        double minConfidence = cityDiscoveryProperties.getMinConfidenceToPersist();
+
+        for (CityDiscoveryCandidate candidate : candidates) {
+            if (!isPersistableCandidate(city, candidate, minConfidence)) {
+                continue;
+            }
+
+            CitySupermarket market = new CitySupermarket();
+            market.setCity(city);
+            market.setSupermarketName(candidate.getSupermarketName().trim());
+            market.setOfficialWebsite(candidate.getWebsite().trim());
+            market.setCatalogSearchUrl(candidate.getWebsite().trim());
+            market.setNotes("CITY_PROVIDER_DISCOVERY confidence=" + candidate.getSourceConfidence());
+            citySupermarketRepository.save(market);
+        }
+
+        return citySupermarketRepository.findByCityIgnoreCase(city);
+    }
+
+    private boolean isPersistableCandidate(String city, CityDiscoveryCandidate candidate, double minConfidence) {
+        if (candidate == null || candidate.getSupermarketName() == null || candidate.getSupermarketName().isBlank()) {
+            return false;
+        }
+        if (candidate.getWebsite() == null || candidate.getWebsite().isBlank()) {
+            return false;
+        }
+        if (candidate.getSourceConfidence() < minConfidence) {
+            return false;
+        }
+        return !citySupermarketRepository.existsByCityIgnoreCaseAndSupermarketNameIgnoreCase(city, candidate.getSupermarketName());
     }
 
     private String resolveCity(String city) {
