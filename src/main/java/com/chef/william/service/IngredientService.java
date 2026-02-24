@@ -2,13 +2,11 @@ package com.chef.william.service;
 
 import com.chef.william.dto.IngredientDTO;
 import com.chef.william.dto.IngredientStoreListingDTO;
-import com.chef.william.dto.SupermarketDiscoveryDTO;
 import com.chef.william.exception.BusinessException;
 import com.chef.william.exception.ResourceNotFoundException;
 import com.chef.william.model.Ingredient;
 import com.chef.william.repository.IngredientRepository;
 import com.chef.william.repository.IngredientStoreListingRepository;
-import com.chef.william.service.ingredient.IngredientDiscoveryFacade;
 import com.chef.william.service.ingredient.IngredientSearchService;
 import com.chef.william.service.mapper.IngredientMapper;
 import lombok.RequiredArgsConstructor;
@@ -28,7 +26,6 @@ public class IngredientService {
     private final IngredientStoreListingRepository ingredientStoreListingRepository;
     private final IngredientMapper ingredientMapper;
     private final IngredientSearchService ingredientSearchService;
-    private final IngredientDiscoveryFacade ingredientDiscoveryFacade;
 
     @Transactional
     public IngredientDTO createIngredient(IngredientDTO dto) {
@@ -108,10 +105,6 @@ public class IngredientService {
                 .toList();
     }
 
-    @Transactional
-    public List<SupermarketDiscoveryDTO> discoverPopularSupermarkets(String city, String ingredientName) {
-        return ingredientDiscoveryFacade.discoverPopularSupermarkets(city, ingredientName);
-    }
 
     @Transactional(readOnly = true)
     public List<IngredientDTO> searchIngredientsByName(String name) {
