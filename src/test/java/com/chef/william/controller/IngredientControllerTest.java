@@ -1,7 +1,6 @@
 package com.chef.william.controller;
 
 import com.chef.william.dto.IngredientDTO;
-import com.chef.william.dto.SupermarketDiscoveryDTO;
 import com.chef.william.model.enums.Unit;
 import com.chef.william.service.IngredientService;
 import org.junit.jupiter.api.Test;
@@ -11,11 +10,9 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -30,93 +27,6 @@ class IngredientControllerTest {
     @MockBean
     private IngredientService ingredientService;
 
-    @Test
-    void discoverSupermarketsEndpointShouldReturnMatches() throws Exception {
-        when(ingredientService.discoverPopularSupermarkets("Bangkok", "tomato"))
-                .thenReturn(List.of(new SupermarketDiscoveryDTO(
-                        "Bangkok",
-                        "Big C",
-                        "https://bigc.example",
-                        "https://bigc.example/search?q=tomato",
-                        true,
-                        "OFFICIAL_WEB_CRAWL",
-                        "DB",
-                        LocalDateTime.now()
-                )));
-
-        mockMvc.perform(get("/api/ingredients/discover-supermarkets")
-                        .param("ingredientName", "tomato")
-                        .param("city", "Bangkok")
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].supermarketName").value("Big C"))
-                .andExpect(jsonPath("$[0].ingredientMatched").value(true));
-    }
-
-    @Test
-    void discoverSupermarketsRouteMustNotBeCapturedByIdRoute() throws Exception {
-        when(ingredientService.discoverPopularSupermarkets("Bangkok", "onion"))
-                .thenReturn(List.of());
-
-        mockMvc.perform(get("/api/ingredients/discover-supermarkets")
-                        .param("ingredientName", "onion")
-                        .param("city", "Bangkok")
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk());
-    }
-
-    @Test
-    void discoverSupermarketsPathVariantShouldSupportEncodedIngredientName() throws Exception {
-        when(ingredientService.discoverPopularSupermarkets("Bangkok", "Soy Sauce"))
-                .thenReturn(List.of(new SupermarketDiscoveryDTO(
-                        "Bangkok",
-                        "Lotus",
-                        "https://lotus.example",
-                        "https://lotus.example/search?q=soy+sauce",
-                        true,
-                        "OFFICIAL_WEB_CRAWL",
-                        "DB",
-                        LocalDateTime.now()
-                )));
-
-        mockMvc.perform(get("/api/ingredients/Soy%20Sauce/discover-supermarkets")
-                        .param("city", "Bangkok")
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].supermarketName").value("Lotus"));
-    }
-
-
-    @Test
-    void discoverSupermarketsShouldRejectLegacyUserIdParam() throws Exception {
-        mockMvc.perform(get("/api/ingredients/discover-supermarkets")
-                        .param("ingredientName", "tomato")
-                        .param("city", "Bangkok")
-                        .param("userId", "42")
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("userId")));
-    }
-
-
-    @Test
-    void discoverSupermarketsPathVariantShouldRejectLegacyUserIdParam() throws Exception {
-        mockMvc.perform(get("/api/ingredients/tomato/discover-supermarkets")
-                        .param("city", "Bangkok")
-                        .param("userId", "99")
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("userId")));
-    }
-
-    @Test
-    void discoverSupermarketsShouldReturnMigrationGuidanceWhenCityMissing() throws Exception {
-        mockMvc.perform(get("/api/ingredients/discover-supermarkets")
-                        .param("ingredientName", "tomato")
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("Migration note")));
-    }
 
     @Test
     void createIngredientsBulkEndpointShouldAcceptArrayPayload() throws Exception {

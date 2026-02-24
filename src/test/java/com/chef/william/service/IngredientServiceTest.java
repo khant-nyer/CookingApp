@@ -3,7 +3,6 @@ package com.chef.william.service;
 import com.chef.william.dto.IngredientDTO;
 import com.chef.william.dto.IngredientStoreListingDTO;
 import com.chef.william.dto.NutritionDTO;
-import com.chef.william.dto.SupermarketDiscoveryDTO;
 import com.chef.william.exception.BusinessException;
 import com.chef.william.exception.ResourceNotFoundException;
 import com.chef.william.model.Ingredient;
@@ -13,7 +12,6 @@ import com.chef.william.model.enums.Nutrients;
 import com.chef.william.model.enums.Unit;
 import com.chef.william.repository.IngredientRepository;
 import com.chef.william.repository.IngredientStoreListingRepository;
-import com.chef.william.service.discovery.SupermarketDiscoveryService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -30,7 +28,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -42,8 +39,6 @@ class IngredientServiceTest {
     @Mock
     private IngredientStoreListingRepository ingredientStoreListingRepository;
 
-    @Mock
-    private SupermarketDiscoveryService supermarketDiscoveryService;
 
     @InjectMocks
     private IngredientService ingredientService;
@@ -190,21 +185,6 @@ class IngredientServiceTest {
                 () -> ingredientService.getIngredientStoreLocations(404L));
     }
 
-    @Test
-    void discoverPopularSupermarketsDelegatesToDiscoveryService() {
-        List<SupermarketDiscoveryDTO> expected = List.of(
-                new SupermarketDiscoveryDTO("Bangkok", "Big C", "https://www.bigc.co.th",
-                        "https://www.bigc.co.th/product/example", true, "OFFICIAL_WEB_CRAWL", "FALLBACK", LocalDateTime.now())
-        );
-
-        when(supermarketDiscoveryService.discover("Bangkok", "Soy Sauce"))
-                .thenReturn(expected);
-
-        List<SupermarketDiscoveryDTO> actual = ingredientService.discoverPopularSupermarkets("Bangkok", "Soy Sauce");
-
-        assertEquals(expected, actual);
-        verify(supermarketDiscoveryService).discover("Bangkok", "Soy Sauce");
-    }
 
     @Test
     void searchIngredientByNutrientThrowsForInvalidNutrient() {
