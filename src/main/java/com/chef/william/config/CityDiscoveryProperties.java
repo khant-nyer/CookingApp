@@ -17,4 +17,7 @@ public class CityDiscoveryProperties {
     private int maxRetries = 2;
     private long retryBackoffMs = 700;
     private double minConfidenceToPersist = 0.55;
+    private long marketCacheTtlSeconds = 21600;
+    private boolean searchProviderEnabled = true;
+    private String searchProviderBaseUrl = "https://duckduckgo.com/html/";
 }
