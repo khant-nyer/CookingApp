@@ -8,12 +8,12 @@ import java.util.Locale;
 import java.util.stream.Stream;
 
 @Component
-public class JsoupSupermarketCatalogVerifier implements SupermarketCatalogVerifier {
+public class JsoupSupermarketCatalogVerifier implements CatalogVerificationStrategy {
 
     @Override
-    public CatalogVerificationResult verifyIngredient(String url, String ingredientName) {
+    public CatalogVerificationResult verify(String url, String ingredientName) {
         if (url == null || url.isBlank() || ingredientName == null || ingredientName.isBlank()) {
-            return new CatalogVerificationResult(false, "NO_MATCH_ON_CRAWL");
+            return CatalogVerificationResult.noMatch("JSOUP", "INVALID_INPUT");
         }
 
         try {
@@ -23,17 +23,22 @@ public class JsoupSupermarketCatalogVerifier implements SupermarketCatalogVerifi
                     .get();
 
             if (matchFromStructuredProductSignals(doc, ingredientName)) {
-                return new CatalogVerificationResult(true, "STRUCTURED_PRODUCT_SCRAPE");
+                return CatalogVerificationResult.matched("STRUCTURED_PRODUCT_SCRAPE", 0.90);
             }
 
             if (matchFromGeneralText(doc, ingredientName)) {
-                return new CatalogVerificationResult(true, "OFFICIAL_WEB_CRAWL");
+                return CatalogVerificationResult.matched("OFFICIAL_WEB_CRAWL", 0.70);
             }
 
-            return new CatalogVerificationResult(false, "NO_MATCH_ON_CRAWL");
+            return CatalogVerificationResult.noMatch("JSOUP", "NO_MATCH_ON_CRAWL");
         } catch (Exception ignored) {
-            return new CatalogVerificationResult(false, "NO_MATCH_ON_CRAWL");
+            return CatalogVerificationResult.noMatch("JSOUP", "CRAWL_EXCEPTION");
         }
+    }
+
+    @Override
+    public int priority() {
+        return 20;
     }
 
     private boolean matchFromStructuredProductSignals(Document doc, String ingredientName) {
