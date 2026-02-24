@@ -31,6 +31,36 @@ public class CitySupermarket {
     @Column(length = 500)
     private String catalogSearchUrl;
 
+
+
+    @Column(length = 120)
+    private String normalizedCity;
+
+    @Column(length = 180)
+    private String normalizedSupermarketName;
+
+    @Column(length = 255)
+    private String canonicalDomain;
+
+    @Column(length = 40)
+    private String sourceProvider;
+
+    private java.time.LocalDateTime lastDiscoveryAt;
+
+    private java.time.LocalDateTime lastVerifiedAt;
+
+    @Column(length = 30)
+    private String verificationStatus;
+
+    private Double verificationConfidence;
+
+    private Double websiteResolverConfidence;
+
+    @Column(length = 255)
+    private String lastFailureReason;
+
+    private java.time.LocalDateTime ttlExpiresAt;
+
     @Column(length = 500)
     private String notes;
 }
