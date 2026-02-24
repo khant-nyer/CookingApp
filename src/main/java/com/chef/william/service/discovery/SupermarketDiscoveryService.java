@@ -86,7 +86,7 @@ public class SupermarketDiscoveryService {
 
             String website = candidate.getWebsite().trim();
             String supermarketName = candidate.getSupermarketName().trim();
-            boolean reachable = supermarketCrawlerClient.webpageContainsIngredient(website, supermarketName);
+            boolean reachable = supermarketCrawlerClient.webpageReachable(website);
             if (!reachable) {
                 continue;
             }

@@ -120,7 +120,7 @@ public class OpenStreetMapCityDiscoveryProvider implements CityDiscoveryProvider
                 continue;
             }
 
-            String website = node.path("extratags").path("website").asText("");
+            String website = pickWebsite(node);
             String key = normalize(name);
             if (deduped.containsKey(key)) {
                 continue;
@@ -159,6 +159,36 @@ public class OpenStreetMapCityDiscoveryProvider implements CityDiscoveryProvider
         } catch (InterruptedException ignored) {
             Thread.currentThread().interrupt();
         }
+    }
+
+
+    private String pickWebsite(JsonNode node) {
+        JsonNode tags = node.path("extratags");
+        String website = firstNonBlank(
+                tags.path("website").asText(""),
+                tags.path("contact:website").asText(""),
+                tags.path("url").asText(""),
+                tags.path("contact:url").asText("")
+        );
+
+        if (website.isBlank()) {
+            return "";
+        }
+
+        String trimmed = website.trim();
+        if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
+            return "https://" + trimmed;
+        }
+        return trimmed;
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return "";
     }
 
     private String pickName(JsonNode node) {

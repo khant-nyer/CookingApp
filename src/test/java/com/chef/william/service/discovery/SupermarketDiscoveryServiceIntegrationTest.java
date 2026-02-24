@@ -138,7 +138,7 @@ class SupermarketDiscoveryServiceIntegrationTest {
                         "https://www.citymart.com.mm/search/{ingredient}",
                         0.82
                 )));
-        when(supermarketCrawlerClient.webpageContainsIngredient(anyString(), eq("City Mart"))).thenReturn(true);
+        when(supermarketCrawlerClient.webpageReachable(anyString())).thenReturn(true);
         when(supermarketCrawlerClient.webpageContainsIngredient(anyString(), eq("Soy Sauce"))).thenReturn(true);
 
         List<SupermarketDiscoveryDTO> result = discoveryService.discover("Yangon", "Soy Sauce");
@@ -160,7 +160,7 @@ class SupermarketDiscoveryServiceIntegrationTest {
                         "https://example.com",
                         0.9
                 )));
-        when(supermarketCrawlerClient.webpageContainsIngredient(anyString(), eq("Unknown Market"))).thenReturn(false);
+        when(supermarketCrawlerClient.webpageReachable(anyString())).thenReturn(false);
 
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> discoveryService.discover("Oslo", "Rice"));
