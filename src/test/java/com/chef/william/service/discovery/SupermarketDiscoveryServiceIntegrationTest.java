@@ -63,4 +63,25 @@ class SupermarketDiscoveryServiceIntegrationTest {
 
         verify(supermarketCrawlerClient, times(6)).webpageContainsIngredient(anyString(), eq("Soy Sauce"));
     }
+
+    @Test
+    void fallbackDiscoveryShouldUseGenericSeedsWhenCityIsNotConfigured() {
+        citySupermarketRepository.deleteAll();
+
+        when(supermarketCrawlerClient.webpageContainsIngredient(anyString(), eq("Sunflower Oil")))
+                .thenReturn(false, false, false);
+
+        List<SupermarketDiscoveryDTO> results = discoveryService.discover(null, "Manila", "Sunflower Oil");
+
+        assertEquals(3, results.size());
+        assertTrue(results.stream().allMatch(SupermarketDiscoveryDTO::isIngredientMatched));
+        assertTrue(results.stream().allMatch(dto -> dto.getCity().equals("Manila")));
+        assertTrue(results.stream().allMatch(dto -> dto.getDiscoverySource().equals("FALLBACK")));
+
+        List<CitySupermarket> persisted = citySupermarketRepository.findByCityIgnoreCase("Manila");
+        assertEquals(3, persisted.size());
+
+        verify(supermarketCrawlerClient, times(3)).webpageContainsIngredient(anyString(), eq("Sunflower Oil"));
+    }
+
 }

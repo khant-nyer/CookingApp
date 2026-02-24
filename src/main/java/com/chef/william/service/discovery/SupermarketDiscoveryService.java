@@ -17,8 +17,10 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.stream.Stream;
 
 @Service
@@ -118,8 +120,15 @@ public class SupermarketDiscoveryService {
     private List<CitySupermarket> getFallbackCitySupermarkets(String city) {
         String normalizedCity = city == null ? "" : city.trim().toLowerCase(Locale.ROOT);
 
-        return discoveryProperties.getFallbackMarkets().stream()
+        List<SupermarketDiscoveryProperties.FallbackMarket> citySpecific = discoveryProperties.getFallbackMarkets().stream()
                 .filter(entry -> entry.getCity() != null && entry.getCity().trim().toLowerCase(Locale.ROOT).equals(normalizedCity))
+                .toList();
+
+        List<SupermarketDiscoveryProperties.FallbackMarket> seeds = citySpecific.isEmpty()
+                ? deduplicateFallbackMarkets(discoveryProperties.getFallbackMarkets())
+                : citySpecific;
+
+        return seeds.stream()
                 .map(entry -> {
                     CitySupermarket market = new CitySupermarket();
                     market.setCity(city.trim());
@@ -130,6 +139,18 @@ public class SupermarketDiscoveryService {
                     return market;
                 })
                 .toList();
+    }
+
+    private List<SupermarketDiscoveryProperties.FallbackMarket> deduplicateFallbackMarkets(
+            List<SupermarketDiscoveryProperties.FallbackMarket> fallbackMarkets) {
+        Map<String, SupermarketDiscoveryProperties.FallbackMarket> deduplicated = new LinkedHashMap<>();
+        for (SupermarketDiscoveryProperties.FallbackMarket market : fallbackMarkets) {
+            String key = (market.getSupermarketName() == null ? "" : market.getSupermarketName().trim().toLowerCase(Locale.ROOT))
+                    + "|"
+                    + (market.getOfficialWebsite() == null ? "" : market.getOfficialWebsite().trim().toLowerCase(Locale.ROOT));
+            deduplicated.putIfAbsent(key, market);
+        }
+        return deduplicated.values().stream().toList();
     }
 
     private void saveDiscoveredSupermarkets(String city, List<CitySupermarket> markets) {
