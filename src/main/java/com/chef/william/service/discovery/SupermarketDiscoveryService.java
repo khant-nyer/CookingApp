@@ -1,6 +1,7 @@
 package com.chef.william.service.discovery;
 
 import com.chef.william.config.CityDiscoveryProperties;
+import com.chef.william.config.SupermarketDiscoveryProperties;
 import com.chef.william.dto.SupermarketDiscoveryDTO;
 import com.chef.william.exception.BusinessException;
 import com.chef.william.model.CitySupermarket;
@@ -28,6 +29,7 @@ public class SupermarketDiscoveryService {
     private final SupermarketCrawlerClient supermarketCrawlerClient;
     private final CityDiscoveryProvider cityDiscoveryProvider;
     private final CityDiscoveryProperties cityDiscoveryProperties;
+    private final SupermarketDiscoveryProperties supermarketDiscoveryProperties;
     private final SupermarketCatalogVerifier supermarketCatalogVerifier;
 
     @Transactional
@@ -55,9 +57,13 @@ public class SupermarketDiscoveryService {
             CatalogVerificationResult verification = supermarketCatalogVerifier
                     .verifyIngredient(crawlTarget, ingredientName);
 
-            if (!verification.isMatched()) {
+            if (!verification.isMatched() && !supportsCatalogSearchTemplate(market)) {
                 continue;
             }
+
+            String matchSource = verification.isMatched()
+                    ? verification.getMatchSource()
+                    : "CATALOG_SEARCH_URL_TEMPLATE";
 
             results.add(new SupermarketDiscoveryDTO(
                     effectiveCity,
@@ -65,7 +71,7 @@ public class SupermarketDiscoveryService {
                     market.getOfficialWebsite(),
                     crawlTarget,
                     true,
-                    verification.getMatchSource(),
+                    matchSource,
                     "DB",
                     LocalDateTime.now()
             ));
@@ -105,7 +111,36 @@ public class SupermarketDiscoveryService {
             citySupermarketRepository.save(market);
         }
 
+        seedConfiguredFallbackMarkets(city);
+
         return citySupermarketRepository.findByCityIgnoreCase(city);
+    }
+
+    private void seedConfiguredFallbackMarkets(String city) {
+        for (SupermarketDiscoveryProperties.FallbackMarket fallback : supermarketDiscoveryProperties.getFallbackMarkets()) {
+            if (!cityMatches(city, fallback.getCity())) {
+                continue;
+            }
+
+            if (fallback.getSupermarketName() == null || fallback.getSupermarketName().isBlank()) {
+                continue;
+            }
+
+            if (citySupermarketRepository.existsByCityIgnoreCaseAndSupermarketNameIgnoreCase(
+                    city,
+                    fallback.getSupermarketName().trim()
+            )) {
+                continue;
+            }
+
+            CitySupermarket market = new CitySupermarket();
+            market.setCity(city);
+            market.setSupermarketName(fallback.getSupermarketName().trim());
+            market.setOfficialWebsite(trimOrEmpty(fallback.getOfficialWebsite()));
+            market.setCatalogSearchUrl(trimOrEmpty(fallback.getCatalogSearchUrl()));
+            market.setNotes(trimOrEmpty(fallback.getNotes()));
+            citySupermarketRepository.save(market);
+        }
     }
 
     private boolean isPersistableCandidate(String city, CityDiscoveryCandidate candidate, double minConfidence) {
@@ -133,6 +168,15 @@ public class SupermarketDiscoveryService {
         return city.trim();
     }
 
+    private boolean supportsCatalogSearchTemplate(CitySupermarket market) {
+        if (market == null) {
+            return false;
+        }
+
+        String catalogSearchUrl = market.getCatalogSearchUrl();
+        return catalogSearchUrl != null && catalogSearchUrl.contains("{ingredient}");
+    }
+
     private String buildCatalogUrl(String baseCatalogUrl, String ingredientName) {
         if (baseCatalogUrl == null || baseCatalogUrl.isBlank()) {
             return "";
@@ -148,5 +192,16 @@ public class SupermarketDiscoveryService {
         }
 
         return baseCatalogUrl + "?q=" + encodedIngredient;
+    }
+
+    private boolean cityMatches(String city, String configuredCity) {
+        if (configuredCity == null) {
+            return false;
+        }
+        return configuredCity.trim().equalsIgnoreCase(city.trim());
+    }
+
+    private String trimOrEmpty(String value) {
+        return value == null ? "" : value.trim();
     }
 }
