@@ -197,13 +197,13 @@ class IngredientServiceTest {
                         "https://www.bigc.co.th/product/example", true, "OFFICIAL_WEB_CRAWL", "FALLBACK", LocalDateTime.now())
         );
 
-        when(supermarketDiscoveryService.discover(null, "Bangkok", "Soy Sauce"))
+        when(supermarketDiscoveryService.discover("Bangkok", "Soy Sauce"))
                 .thenReturn(expected);
 
-        List<SupermarketDiscoveryDTO> actual = ingredientService.discoverPopularSupermarkets(null, "Bangkok", "Soy Sauce");
+        List<SupermarketDiscoveryDTO> actual = ingredientService.discoverPopularSupermarkets("Bangkok", "Soy Sauce");
 
         assertEquals(expected, actual);
-        verify(supermarketDiscoveryService).discover(null, "Bangkok", "Soy Sauce");
+        verify(supermarketDiscoveryService).discover("Bangkok", "Soy Sauce");
     }
 
     @Test

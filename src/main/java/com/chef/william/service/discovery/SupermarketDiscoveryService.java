@@ -3,11 +3,8 @@ package com.chef.william.service.discovery;
 import com.chef.william.config.SupermarketDiscoveryProperties;
 import com.chef.william.dto.SupermarketDiscoveryDTO;
 import com.chef.william.exception.BusinessException;
-import com.chef.william.exception.ResourceNotFoundException;
 import com.chef.william.model.CitySupermarket;
-import com.chef.william.model.User;
 import com.chef.william.repository.CitySupermarketRepository;
-import com.chef.william.repository.UserRepository;
 import com.chef.william.service.crawler.SupermarketCrawlerClient;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -28,17 +25,16 @@ import java.util.stream.Stream;
 public class SupermarketDiscoveryService {
 
     private final CitySupermarketRepository citySupermarketRepository;
-    private final UserRepository userRepository;
     private final SupermarketCrawlerClient supermarketCrawlerClient;
     private final SupermarketDiscoveryProperties discoveryProperties;
 
     @Transactional
-    public List<SupermarketDiscoveryDTO> discover(Long userId, String city, String ingredientName) {
+    public List<SupermarketDiscoveryDTO> discover(String city, String ingredientName) {
         if (ingredientName == null || ingredientName.trim().isEmpty()) {
             throw new BusinessException("Ingredient name is required for supermarket discovery");
         }
 
-        String effectiveCity = resolveCity(userId, city);
+        String effectiveCity = resolveCity(city);
         List<CitySupermarket> persistedMarkets = citySupermarketRepository.findByCityIgnoreCase(effectiveCity.trim());
 
         boolean usingFallback = persistedMarkets.isEmpty();
@@ -81,23 +77,12 @@ public class SupermarketDiscoveryService {
         return results;
     }
 
-    private String resolveCity(Long userId, String city) {
-        if (city != null && !city.trim().isEmpty()) {
-            return city.trim();
+    private String resolveCity(String city) {
+        if (city == null || city.trim().isEmpty()) {
+            throw new BusinessException("City is required for supermarket discovery");
         }
 
-        if (userId == null) {
-            throw new BusinessException("City is required when userId is not provided");
-        }
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
-
-        if (user.getCity() == null || user.getCity().isBlank()) {
-            throw new BusinessException("User city is not set for user id: " + userId);
-        }
-
-        return user.getCity().trim();
+        return city.trim();
     }
 
     private String buildCatalogUrl(String baseCatalogUrl, String ingredientName) {
