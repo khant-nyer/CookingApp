@@ -8,6 +8,8 @@ import com.chef.william.repository.CitySupermarketRepository;
 import com.chef.william.service.crawler.SupermarketCrawlerClient;
 import com.chef.william.service.discovery.provider.CityDiscoveryCandidate;
 import com.chef.william.service.discovery.provider.CityDiscoveryProvider;
+import com.chef.william.service.discovery.verification.CatalogVerificationResult;
+import com.chef.william.service.discovery.verification.SupermarketCatalogVerifier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +28,7 @@ public class SupermarketDiscoveryService {
     private final SupermarketCrawlerClient supermarketCrawlerClient;
     private final CityDiscoveryProvider cityDiscoveryProvider;
     private final CityDiscoveryProperties cityDiscoveryProperties;
+    private final SupermarketCatalogVerifier supermarketCatalogVerifier;
 
     @Transactional
     public List<SupermarketDiscoveryDTO> discover(String city, String ingredientName) {
@@ -49,9 +52,10 @@ public class SupermarketDiscoveryService {
         for (CitySupermarket market : persistedMarkets) {
             String searchUrl = buildCatalogUrl(market.getCatalogSearchUrl(), ingredientName);
             String crawlTarget = !searchUrl.isBlank() ? searchUrl : market.getOfficialWebsite();
-            boolean crawlMatched = supermarketCrawlerClient.webpageContainsIngredient(crawlTarget, ingredientName);
+            CatalogVerificationResult verification = supermarketCatalogVerifier
+                    .verifyIngredient(crawlTarget, ingredientName);
 
-            if (!crawlMatched) {
+            if (!verification.isMatched()) {
                 continue;
             }
 
@@ -61,7 +65,7 @@ public class SupermarketDiscoveryService {
                     market.getOfficialWebsite(),
                     crawlTarget,
                     true,
-                    "OFFICIAL_WEB_CRAWL",
+                    verification.getMatchSource(),
                     "DB",
                     LocalDateTime.now()
             ));

@@ -7,6 +7,8 @@ import com.chef.william.repository.CitySupermarketRepository;
 import com.chef.william.service.crawler.SupermarketCrawlerClient;
 import com.chef.william.service.discovery.provider.CityDiscoveryCandidate;
 import com.chef.william.service.discovery.provider.CityDiscoveryProvider;
+import com.chef.william.service.discovery.verification.CatalogVerificationResult;
+import com.chef.william.service.discovery.verification.SupermarketCatalogVerifier;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -47,6 +49,9 @@ class SupermarketDiscoveryServiceIntegrationTest {
     @MockBean
     private CityDiscoveryProvider cityDiscoveryProvider;
 
+    @MockBean
+    private SupermarketCatalogVerifier supermarketCatalogVerifier;
+
     @Test
     void dbDiscoveryShouldReturnOnlyCrawlVerifiedMatchesForPersistedCitySupermarkets() {
         citySupermarketRepository.deleteAll();
@@ -66,16 +71,17 @@ class SupermarketDiscoveryServiceIntegrationTest {
 
         citySupermarketRepository.saveAll(List.of(bigC, lotuss));
 
-        when(supermarketCrawlerClient.webpageContainsIngredient(anyString(), eq("Soy Sauce")))
-                .thenReturn(true, true);
+        when(supermarketCatalogVerifier.verifyIngredient(anyString(), eq("Soy Sauce")))
+                .thenReturn(new CatalogVerificationResult(true, "STRUCTURED_PRODUCT_SCRAPE"),
+                        new CatalogVerificationResult(true, "OFFICIAL_WEB_CRAWL"));
 
         List<SupermarketDiscoveryDTO> first = discoveryService.discover("Bangkok", "Soy Sauce");
 
         assertEquals(2, first.size());
         assertTrue(first.stream().allMatch(dto -> dto.getDiscoverySource().equals("DB")));
-        assertTrue(first.stream().allMatch(dto -> dto.getMatchSource().equals("OFFICIAL_WEB_CRAWL")));
+        assertTrue(first.stream().anyMatch(dto -> dto.getMatchSource().equals("STRUCTURED_PRODUCT_SCRAPE")));
 
-        verify(supermarketCrawlerClient, times(2)).webpageContainsIngredient(anyString(), eq("Soy Sauce"));
+        verify(supermarketCatalogVerifier, times(2)).verifyIngredient(anyString(), eq("Soy Sauce"));
     }
 
     @Test
@@ -100,7 +106,8 @@ class SupermarketDiscoveryServiceIntegrationTest {
         bigC.setCatalogSearchUrl("https://www.bigc.co.th/search?q={ingredient}");
         citySupermarketRepository.save(bigC);
 
-        when(supermarketCrawlerClient.webpageContainsIngredient(anyString(), eq("Beef"))).thenReturn(false);
+        when(supermarketCatalogVerifier.verifyIngredient(anyString(), eq("Beef")))
+                .thenReturn(new CatalogVerificationResult(false, "NO_MATCH_ON_CRAWL"));
 
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> discoveryService.discover("Bangkok", "Beef"));
@@ -139,7 +146,8 @@ class SupermarketDiscoveryServiceIntegrationTest {
                         0.82
                 )));
         when(supermarketCrawlerClient.webpageReachable(anyString())).thenReturn(true);
-        when(supermarketCrawlerClient.webpageContainsIngredient(anyString(), eq("Soy Sauce"))).thenReturn(true);
+        when(supermarketCatalogVerifier.verifyIngredient(anyString(), eq("Soy Sauce")))
+                .thenReturn(new CatalogVerificationResult(true, "STRUCTURED_PRODUCT_SCRAPE"));
 
         List<SupermarketDiscoveryDTO> result = discoveryService.discover("Yangon", "Soy Sauce");
 
