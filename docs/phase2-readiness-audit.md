@@ -34,14 +34,13 @@ This audit checks whether the repository behavior currently matches **Phase 2** 
 6. **User model no longer stores city**
    - `User` entity has no `city` field.
 
-7. **Fallback seed config still exists but appears unused by current discovery service**
-   - `application.properties` still includes fallback seed properties.
-   - `SupermarketDiscoveryProperties` still models fallback markets.
-   - This is not a behavior bug today, but can confuse future maintenance.
+7. **Fallback seed config is now bootstrap-only (cache warm-start)**
+   - `application.properties` includes bootstrap seed properties for known cities.
+   - Discovery remains live-first and city-aware; seeds are optional candidates, not required source-of-truth.
 
 ## Recommendation before Phase 3
 - Decide and lock the Phase 2 API semantics for unknown city:
   - keep current `400 BusinessException`, **or**
   - migrate to `200 + [] + metadata/status` (`NO_VERIFIED_SUPERMARKETS_FOR_CITY`).
 - If keeping `400`, update plan docs to reflect this chosen contract.
-- Optionally remove dead fallback properties/classes now (or explicitly mark deprecated) to reduce ambiguity before introducing a City Discovery Provider in Phase 3.
+- Keep bootstrap seeds explicitly documented as optional warm-start data to reduce ambiguity in future phases.

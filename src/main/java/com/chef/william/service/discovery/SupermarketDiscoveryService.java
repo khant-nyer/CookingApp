@@ -11,6 +11,7 @@ import com.chef.william.service.discovery.provider.CityDiscoveryProvider;
 import com.chef.william.service.discovery.verification.CatalogVerificationResult;
 import com.chef.william.service.discovery.verification.SupermarketCatalogVerifier;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,12 +20,14 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SupermarketDiscoveryService {
@@ -44,16 +47,18 @@ public class SupermarketDiscoveryService {
         String effectiveCity = resolveCity(city);
         List<CitySupermarket> cachedMarkets = citySupermarketRepository.findByCityIgnoreCase(effectiveCity);
 
+        DiscoveryStats stats = new DiscoveryStats(effectiveCity, ingredientName.trim());
         Map<String, CandidateMarket> candidates = new LinkedHashMap<>();
-        addCachedCandidates(candidates, cachedMarkets);
-        addLiveDiscoveredCandidates(candidates, effectiveCity);
-        addFallbackSeedCandidates(candidates, effectiveCity);
+        addCachedCandidates(candidates, cachedMarkets, stats);
+        addLiveDiscoveredCandidates(candidates, effectiveCity, stats);
+        addFallbackSeedCandidates(candidates, effectiveCity, stats);
 
         if (candidates.isEmpty()) {
+            log.warn("DISCOVERY_FAIL city={} ingredient={} reason=NO_CANDIDATES", effectiveCity, ingredientName.trim());
             throw new BusinessException("No verified supermarkets found for city: " + effectiveCity);
         }
 
-        List<SupermarketDiscoveryDTO> results = new ArrayList<>();
+        List<RankedResult> rankedResults = new ArrayList<>();
         LocalDateTime now = LocalDateTime.now();
 
         for (CandidateMarket candidate : candidates.values()) {
@@ -67,17 +72,24 @@ public class SupermarketDiscoveryService {
                 market.setLastFailureReason(verification.getFailureReason());
                 market.setLastVerifiedAt(now);
                 citySupermarketRepository.save(market);
+                stats.unmatched++;
+                log.info("DISCOVERY_REJECT city={} supermarket={} reason={} source={}",
+                        effectiveCity,
+                        market.getSupermarketName(),
+                        verification.getFailureReason(),
+                        market.getSourceProvider());
                 continue;
             }
 
             market.setVerificationStatus("MATCHED");
             market.setLastFailureReason("");
             market.setLastVerifiedAt(now);
-            market.setVerificationConfidence(Math.max(candidate.confidence, verification.getConfidence()));
+            double finalConfidence = Math.max(candidate.confidence, verification.getConfidence());
+            market.setVerificationConfidence(finalConfidence);
             citySupermarketRepository.save(market);
 
             String matchSource = verification.isMatched() ? verification.getMatchSource() : "CATALOG_SEARCH_URL_TEMPLATE";
-            results.add(new SupermarketDiscoveryDTO(
+            SupermarketDiscoveryDTO dto = new SupermarketDiscoveryDTO(
                     effectiveCity,
                     market.getSupermarketName(),
                     market.getOfficialWebsite(),
@@ -86,24 +98,39 @@ public class SupermarketDiscoveryService {
                     matchSource,
                     "DB_CACHE",
                     now
-            ));
+            );
+            rankedResults.add(new RankedResult(dto, rankScore(candidate, market, verification, now)));
+            stats.matched++;
         }
 
-        if (results.isEmpty()) {
+        if (rankedResults.isEmpty()) {
+            log.warn("DISCOVERY_FAIL city={} ingredient={} reason=NO_VERIFIED_MATCHES", effectiveCity, ingredientName.trim());
             throw new BusinessException("No verified supermarket matches found for ingredient '"
                     + ingredientName.trim() + "' in city: " + effectiveCity);
         }
 
-        return results;
+        log.info("DISCOVERY_SUMMARY city={} ingredient={} candidates={} cacheCandidates={} liveCandidates={} " +
+                        "bootstrapSeeds={} matched={} unmatched={}",
+                stats.city, stats.ingredient, candidates.size(), stats.cacheCandidates,
+                stats.liveCandidates, stats.bootstrapSeeds, stats.matched, stats.unmatched);
+
+        return rankedResults.stream()
+                .sorted(Comparator.comparingDouble(RankedResult::score).reversed())
+                .map(RankedResult::dto)
+                .toList();
     }
 
-    private void addLiveDiscoveredCandidates(Map<String, CandidateMarket> candidates, String city) {
+    private void addLiveDiscoveredCandidates(Map<String, CandidateMarket> candidates, String city, DiscoveryStats stats) {
         double minConfidence = Math.max(0.35, cityDiscoveryProperties.getMinConfidenceToPersist() - 0.20);
         for (CityDiscoveryCandidate candidate : cityDiscoveryProvider.discoverSupermarkets(city)) {
             if (candidate == null || candidate.getSupermarketName() == null || candidate.getSupermarketName().isBlank()) {
+                stats.rejectedCandidates++;
                 continue;
             }
             if (candidate.getSourceConfidence() < minConfidence) {
+                stats.rejectedCandidates++;
+                log.debug("DISCOVERY_CANDIDATE_REJECT city={} supermarket={} reason=LOW_CONFIDENCE confidence={}",
+                        city, candidate.getSupermarketName(), candidate.getSourceConfidence());
                 continue;
             }
 
@@ -113,11 +140,14 @@ public class SupermarketDiscoveryService {
             if (existing == null || candidate.getSourceConfidence() > existing.confidence) {
                 candidates.put(key, new CandidateMarket(candidate.getSupermarketName().trim(), website, website,
                         candidate.getSourceConfidence(), "LIVE_DISCOVERY"));
+                stats.liveCandidates++;
             }
         }
     }
 
-    private void addCachedCandidates(Map<String, CandidateMarket> candidates, List<CitySupermarket> cached) {
+    private void addCachedCandidates(Map<String, CandidateMarket> candidates,
+                                     List<CitySupermarket> cached,
+                                     DiscoveryStats stats) {
         LocalDateTime now = LocalDateTime.now();
         for (CitySupermarket market : cached) {
             String key = normalize(market.getSupermarketName());
@@ -132,10 +162,13 @@ public class SupermarketDiscoveryService {
                     confidence,
                     "CACHE"
             ));
+            stats.cacheCandidates++;
         }
     }
 
-    private void addFallbackSeedCandidates(Map<String, CandidateMarket> candidates, String city) {
+    private void addFallbackSeedCandidates(Map<String, CandidateMarket> candidates,
+                                           String city,
+                                           DiscoveryStats stats) {
         for (SupermarketDiscoveryProperties.FallbackMarket fallback : supermarketDiscoveryProperties.getFallbackMarkets()) {
             if (!cityMatches(city, fallback.getCity())) {
                 continue;
@@ -145,14 +178,46 @@ public class SupermarketDiscoveryService {
             }
 
             String key = normalize(fallback.getSupermarketName());
+            boolean isNew = !candidates.containsKey(key);
             candidates.putIfAbsent(key, new CandidateMarket(
                     fallback.getSupermarketName().trim(),
                     normalizeUrl(fallback.getOfficialWebsite()),
                     normalizeUrl(fallback.getCatalogSearchUrl()),
-                    0.55,
-                    "FALLBACK_BOOTSTRAP"
+                    0.45,
+                    "BOOTSTRAP_SEED"
             ));
+            if (isNew) {
+                stats.bootstrapSeeds++;
+            }
         }
+    }
+
+    private double rankScore(CandidateMarket candidate,
+                             CitySupermarket market,
+                             CatalogVerificationResult verification,
+                             LocalDateTime now) {
+        double score = Math.max(candidate.confidence, verification.getConfidence());
+
+        if (market.getLastVerifiedAt() != null) {
+            long ageHours = java.time.Duration.between(market.getLastVerifiedAt(), now).toHours();
+            if (ageHours <= 24) {
+                score += 0.08;
+            } else if (ageHours > 72) {
+                score -= 0.08;
+            }
+        }
+
+        if ("LIVE_DISCOVERY".equalsIgnoreCase(candidate.source)) {
+            score += 0.04;
+        }
+        if ("BOOTSTRAP_SEED".equalsIgnoreCase(candidate.source)) {
+            score -= 0.06;
+        }
+        if (verification.isMatched() && "STRUCTURED_PRODUCT_SCRAPE".equalsIgnoreCase(verification.getMatchSource())) {
+            score += 0.06;
+        }
+
+        return Math.min(0.99, Math.max(0.0, score));
     }
 
     private CitySupermarket upsertCacheRow(String city, CandidateMarket candidate, LocalDateTime now) {
@@ -239,6 +304,25 @@ public class SupermarketDiscoveryService {
         }
     }
 
+    private record RankedResult(SupermarketDiscoveryDTO dto, double score) {
+    }
+
     private record CandidateMarket(String name, String website, String catalogUrl, double confidence, String source) {
+    }
+
+    private static final class DiscoveryStats {
+        private final String city;
+        private final String ingredient;
+        private int cacheCandidates;
+        private int liveCandidates;
+        private int bootstrapSeeds;
+        private int rejectedCandidates;
+        private int matched;
+        private int unmatched;
+
+        private DiscoveryStats(String city, String ingredient) {
+            this.city = city;
+            this.ingredient = ingredient;
+        }
     }
 }
