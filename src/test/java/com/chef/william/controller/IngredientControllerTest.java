@@ -86,6 +86,38 @@ class IngredientControllerTest {
                 .andExpect(jsonPath("$[0].supermarketName").value("Lotus"));
     }
 
+
+    @Test
+    void discoverSupermarketsShouldRejectLegacyUserIdParam() throws Exception {
+        mockMvc.perform(get("/api/ingredients/discover-supermarkets")
+                        .param("ingredientName", "tomato")
+                        .param("city", "Bangkok")
+                        .param("userId", "42")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("userId")));
+    }
+
+
+    @Test
+    void discoverSupermarketsPathVariantShouldRejectLegacyUserIdParam() throws Exception {
+        mockMvc.perform(get("/api/ingredients/tomato/discover-supermarkets")
+                        .param("city", "Bangkok")
+                        .param("userId", "99")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("userId")));
+    }
+
+    @Test
+    void discoverSupermarketsShouldReturnMigrationGuidanceWhenCityMissing() throws Exception {
+        mockMvc.perform(get("/api/ingredients/discover-supermarkets")
+                        .param("ingredientName", "tomato")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("Migration note")));
+    }
+
     @Test
     void createIngredientsBulkEndpointShouldAcceptArrayPayload() throws Exception {
         IngredientDTO ingredient = new IngredientDTO();
