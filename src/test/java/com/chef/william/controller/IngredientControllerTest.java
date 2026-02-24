@@ -32,7 +32,7 @@ class IngredientControllerTest {
 
     @Test
     void discoverSupermarketsEndpointShouldReturnMatches() throws Exception {
-        when(ingredientService.discoverPopularSupermarkets(1L, "Bangkok", "tomato"))
+        when(ingredientService.discoverPopularSupermarkets("Bangkok", "tomato"))
                 .thenReturn(List.of(new SupermarketDiscoveryDTO(
                         "Bangkok",
                         "Big C",
@@ -47,7 +47,6 @@ class IngredientControllerTest {
         mockMvc.perform(get("/api/ingredients/discover-supermarkets")
                         .param("ingredientName", "tomato")
                         .param("city", "Bangkok")
-                        .param("userId", "1")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].supermarketName").value("Big C"))
@@ -56,7 +55,7 @@ class IngredientControllerTest {
 
     @Test
     void discoverSupermarketsRouteMustNotBeCapturedByIdRoute() throws Exception {
-        when(ingredientService.discoverPopularSupermarkets(null, "Bangkok", "onion"))
+        when(ingredientService.discoverPopularSupermarkets("Bangkok", "onion"))
                 .thenReturn(List.of());
 
         mockMvc.perform(get("/api/ingredients/discover-supermarkets")
@@ -68,7 +67,7 @@ class IngredientControllerTest {
 
     @Test
     void discoverSupermarketsPathVariantShouldSupportEncodedIngredientName() throws Exception {
-        when(ingredientService.discoverPopularSupermarkets(null, "Bangkok", "Soy Sauce"))
+        when(ingredientService.discoverPopularSupermarkets("Bangkok", "Soy Sauce"))
                 .thenReturn(List.of(new SupermarketDiscoveryDTO(
                         "Bangkok",
                         "Lotus",

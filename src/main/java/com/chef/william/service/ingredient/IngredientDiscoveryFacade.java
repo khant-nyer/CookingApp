@@ -15,7 +15,7 @@ public class IngredientDiscoveryFacade {
     private final SupermarketDiscoveryService supermarketDiscoveryService;
 
     @Transactional
-    public List<SupermarketDiscoveryDTO> discoverPopularSupermarkets(Long userId, String city, String ingredientName) {
-        return supermarketDiscoveryService.discover(userId, city, ingredientName);
+    public List<SupermarketDiscoveryDTO> discoverPopularSupermarkets(String city, String ingredientName) {
+        return supermarketDiscoveryService.discover(city, ingredientName);
     }
 }
