@@ -28,7 +28,7 @@ import java.util.Map;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class OpenStreetMapCityDiscoveryProvider implements CityDiscoveryProvider {
+public class OpenStreetMapCityDiscoveryProvider implements CityDiscoverySourceProvider {
 
     private final CityDiscoveryProperties properties;
     private final ObjectMapper objectMapper;
@@ -36,6 +36,11 @@ public class OpenStreetMapCityDiscoveryProvider implements CityDiscoveryProvider
     private final Map<String, CacheEntry> cache = new HashMap<>();
     private Instant lastRequestAt = Instant.EPOCH;
 
+
+    @Override
+    public String sourceName() {
+        return "osm";
+    }
     @Override
     public synchronized List<CityDiscoveryCandidate> discoverSupermarkets(String city) {
         String normalizedCity = normalizeCity(city);
