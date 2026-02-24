@@ -100,6 +100,27 @@ class SupermarketDiscoveryServiceIntegrationTest {
         assertTrue(ex.getMessage().contains("No verified supermarkets found for city: Manila"));
     }
 
+
+    @Test
+    void discoveryShouldNotFallbackToBangkokRowsForAnotherCity() {
+        citySupermarketRepository.deleteAll();
+
+        CitySupermarket bangkokOnly = new CitySupermarket();
+        bangkokOnly.setCity("Bangkok");
+        bangkokOnly.setSupermarketName("Big C");
+        bangkokOnly.setOfficialWebsite("https://www.bigc.co.th");
+        bangkokOnly.setCatalogSearchUrl("https://www.bigc.co.th/search?q={ingredient}");
+        citySupermarketRepository.save(bangkokOnly);
+
+        when(cityDiscoveryProvider.discoverSupermarkets("London")).thenReturn(List.of());
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> discoveryService.discover("London", "Rice"));
+
+        assertTrue(ex.getMessage().contains("No verified supermarkets found for city: London"));
+        assertTrue(citySupermarketRepository.findByCityIgnoreCase("London").isEmpty());
+    }
+
     @Test
     void discoveryShouldUseCityProviderCandidatesWhenCityHasNoPersistedRows() {
         citySupermarketRepository.deleteAll();

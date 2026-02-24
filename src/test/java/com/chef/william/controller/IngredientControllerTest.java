@@ -98,6 +98,17 @@ class IngredientControllerTest {
                 .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("userId")));
     }
 
+
+    @Test
+    void discoverSupermarketsPathVariantShouldRejectLegacyUserIdParam() throws Exception {
+        mockMvc.perform(get("/api/ingredients/tomato/discover-supermarkets")
+                        .param("city", "Bangkok")
+                        .param("userId", "99")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("userId")));
+    }
+
     @Test
     void discoverSupermarketsShouldReturnMigrationGuidanceWhenCityMissing() throws Exception {
         mockMvc.perform(get("/api/ingredients/discover-supermarkets")
