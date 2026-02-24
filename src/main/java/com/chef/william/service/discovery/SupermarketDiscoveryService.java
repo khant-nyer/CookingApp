@@ -207,6 +207,24 @@ public class SupermarketDiscoveryService {
         }
     }
 
+    private boolean shouldReplaceLiveCandidate(CandidateMarket existing, CandidateMarket incoming) {
+        if (existing == null) {
+            return true;
+        }
+
+        boolean existingHasWebsite = existing.website != null && !existing.website.isBlank();
+        boolean incomingHasWebsite = incoming.website != null && !incoming.website.isBlank();
+
+        if (incomingHasWebsite && !existingHasWebsite) {
+            return true;
+        }
+        if (!incomingHasWebsite && existingHasWebsite) {
+            return false;
+        }
+
+        return incoming.confidence > existing.confidence;
+    }
+
     private double rankScore(CandidateMarket candidate,
                              CitySupermarket market,
                              CatalogVerificationResult verification,
