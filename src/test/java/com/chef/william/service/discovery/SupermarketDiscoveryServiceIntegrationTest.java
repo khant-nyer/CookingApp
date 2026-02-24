@@ -116,7 +116,7 @@ class SupermarketDiscoveryServiceIntegrationTest {
     }
 
     @Test
-    void discoveryShouldNotFallbackToBangkokRowsForAnotherCity() {
+    void discoveryShouldNotFallbackToBangkokRowsForUnknownCity() {
         citySupermarketRepository.deleteAll();
 
         CitySupermarket bangkokOnly = new CitySupermarket();
@@ -126,13 +126,32 @@ class SupermarketDiscoveryServiceIntegrationTest {
         bangkokOnly.setCatalogSearchUrl("https://www.bigc.co.th/search?q={ingredient}");
         citySupermarketRepository.save(bangkokOnly);
 
-        when(cityDiscoveryProvider.discoverSupermarkets("London")).thenReturn(List.of());
+        when(cityDiscoveryProvider.discoverSupermarkets("Paris")).thenReturn(List.of());
 
         BusinessException ex = assertThrows(BusinessException.class,
-                () -> discoveryService.discover("London", "Rice"));
+                () -> discoveryService.discover("Paris", "Rice"));
 
-        assertTrue(ex.getMessage().contains("No verified supermarkets found for city: London"));
-        assertTrue(citySupermarketRepository.findByCityIgnoreCase("London").isEmpty());
+        assertTrue(ex.getMessage().contains("No verified supermarkets found for city: Paris"));
+        assertTrue(citySupermarketRepository.findByCityIgnoreCase("Paris").isEmpty());
+    }
+
+
+
+    @Test
+    void discoveryShouldUseConfiguredLondonFallbackMarketsWhenProviderHasNoCandidates() {
+        citySupermarketRepository.deleteAll();
+
+        when(cityDiscoveryProvider.discoverSupermarkets("London")).thenReturn(List.of());
+        when(supermarketCatalogVerifier.verifyIngredient(anyString(), eq("Soy Sauce")))
+                .thenReturn(new CatalogVerificationResult(true, "STRUCTURED_PRODUCT_SCRAPE"));
+
+        List<SupermarketDiscoveryDTO> result = discoveryService.discover("London", "Soy Sauce");
+
+        assertTrue(result.size() >= 1);
+        assertTrue(result.stream().anyMatch(dto -> dto.getSupermarketName().equals("Sainsbury's")));
+        assertTrue(result.stream().allMatch(dto -> dto.getCity().equals("London")));
+        assertTrue(result.stream().allMatch(dto -> dto.getDiscoverySource().equals("DB")));
+        assertTrue(citySupermarketRepository.existsByCityIgnoreCaseAndSupermarketNameIgnoreCase("London", "Sainsbury's"));
     }
 
     @Test
