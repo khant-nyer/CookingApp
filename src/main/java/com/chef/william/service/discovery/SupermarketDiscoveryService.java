@@ -64,7 +64,7 @@ public class SupermarketDiscoveryService {
             CatalogVerificationResult verification = supermarketCatalogVerifier.verifyIngredient(crawlTarget, ingredientName);
             if (!verification.isMatched() && !supportsCatalogSearchTemplate(market)) {
                 market.setVerificationStatus("UNMATCHED");
-                market.setLastFailureReason("NO_MATCH_ON_CRAWL");
+                market.setLastFailureReason(verification.getFailureReason());
                 market.setLastVerifiedAt(now);
                 citySupermarketRepository.save(market);
                 continue;
@@ -73,7 +73,7 @@ public class SupermarketDiscoveryService {
             market.setVerificationStatus("MATCHED");
             market.setLastFailureReason("");
             market.setLastVerifiedAt(now);
-            market.setVerificationConfidence(candidate.confidence);
+            market.setVerificationConfidence(Math.max(candidate.confidence, verification.getConfidence()));
             citySupermarketRepository.save(market);
 
             String matchSource = verification.isMatched() ? verification.getMatchSource() : "CATALOG_SEARCH_URL_TEMPLATE";
