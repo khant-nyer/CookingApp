@@ -3,6 +3,7 @@ package com.chef.william.controller;
 import com.chef.william.dto.IngredientDTO;
 import com.chef.william.dto.IngredientStoreListingDTO;
 import com.chef.william.dto.SupermarketDiscoveryDTO;
+import com.chef.william.exception.BusinessException;
 import com.chef.william.service.IngredientService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -90,15 +91,29 @@ public class IngredientController {
     @GetMapping({"/{ingredientName}/discover-supermarkets", "/{ingredientName}/discover-supermarkets/"})
     public ResponseEntity<List<SupermarketDiscoveryDTO>> discoverSupermarketsByIngredientPath(
             @PathVariable String ingredientName,
-            @RequestParam(name = "city") String city) {
+            @RequestParam(name = "city") String city,
+            @RequestParam(name = "userId", required = false) Long userId) {
+        validateLegacyUserId(userId);
         return discoverSupermarketsInternal(ingredientName, city);
     }
 
     @GetMapping({"/discover-supermarkets", "/discover-supermarkets/"})
     public ResponseEntity<List<SupermarketDiscoveryDTO>> discoverSupermarkets(
             @RequestParam(name = "ingredientName") String ingredientName,
-            @RequestParam(name = "city") String city) {
+            @RequestParam(name = "city") String city,
+            @RequestParam(name = "userId", required = false) Long userId) {
+        validateLegacyUserId(userId);
         return discoverSupermarketsInternal(ingredientName, city);
+    }
+
+
+    private void validateLegacyUserId(Long userId) {
+        if (userId != null) {
+            throw new BusinessException(
+                    "The 'userId' parameter is no longer supported for supermarket discovery. " +
+                            "Please send 'city' and 'ingredientName' only."
+            );
+        }
     }
 
     private ResponseEntity<List<SupermarketDiscoveryDTO>> discoverSupermarketsInternal(
