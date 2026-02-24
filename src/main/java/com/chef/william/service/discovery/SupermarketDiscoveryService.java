@@ -1,10 +1,13 @@
 package com.chef.william.service.discovery;
 
+import com.chef.william.config.CityDiscoveryProperties;
 import com.chef.william.dto.SupermarketDiscoveryDTO;
 import com.chef.william.exception.BusinessException;
 import com.chef.william.model.CitySupermarket;
 import com.chef.william.repository.CitySupermarketRepository;
 import com.chef.william.service.crawler.SupermarketCrawlerClient;
+import com.chef.william.service.discovery.provider.CityDiscoveryCandidate;
+import com.chef.william.service.discovery.provider.CityDiscoveryProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,10 +16,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
-import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +24,8 @@ public class SupermarketDiscoveryService {
 
     private final CitySupermarketRepository citySupermarketRepository;
     private final SupermarketCrawlerClient supermarketCrawlerClient;
+    private final CityDiscoveryProvider cityDiscoveryProvider;
+    private final CityDiscoveryProperties cityDiscoveryProperties;
 
     @Transactional
     public List<SupermarketDiscoveryDTO> discover(String city, String ingredientName) {
@@ -35,6 +37,10 @@ public class SupermarketDiscoveryService {
         List<CitySupermarket> persistedMarkets = citySupermarketRepository.findByCityIgnoreCase(effectiveCity.trim());
 
         if (persistedMarkets.isEmpty()) {
+            persistedMarkets = discoverAndPersistCityMarkets(effectiveCity);
+        }
+
+        if (persistedMarkets.isEmpty()) {
             throw new BusinessException("No verified supermarkets found for city: " + effectiveCity);
         }
 
@@ -44,25 +50,75 @@ public class SupermarketDiscoveryService {
             String searchUrl = buildCatalogUrl(market.getCatalogSearchUrl(), ingredientName);
             String crawlTarget = !searchUrl.isBlank() ? searchUrl : market.getOfficialWebsite();
             boolean crawlMatched = supermarketCrawlerClient.webpageContainsIngredient(crawlTarget, ingredientName);
-            boolean urlMatched = urlContainsIngredient(crawlTarget, ingredientName);
-            boolean matched = crawlMatched || urlMatched;
-            String matchSource = crawlMatched ? "OFFICIAL_WEB_CRAWL"
-                    : (urlMatched ? "CATALOG_URL_QUERY_MATCH" : "NO_MATCH_ON_CRAWL");
+
+            if (!crawlMatched) {
+                continue;
+            }
 
             results.add(new SupermarketDiscoveryDTO(
                     effectiveCity,
                     market.getSupermarketName(),
                     market.getOfficialWebsite(),
                     crawlTarget,
-                    matched,
-                    matchSource,
+                    true,
+                    "OFFICIAL_WEB_CRAWL",
                     "DB",
                     LocalDateTime.now()
             ));
+        }
 
+        if (results.isEmpty()) {
+            throw new BusinessException("No verified supermarket matches found for ingredient '"
+                    + ingredientName.trim() + "' in city: " + effectiveCity);
         }
 
         return results;
+    }
+
+    private List<CitySupermarket> discoverAndPersistCityMarkets(String city) {
+        List<CityDiscoveryCandidate> candidates = cityDiscoveryProvider.discoverSupermarkets(city);
+        double minConfidence = cityDiscoveryProperties.getMinConfidenceToPersist();
+
+        for (CityDiscoveryCandidate candidate : candidates) {
+            if (!isPersistableCandidate(city, candidate, minConfidence)) {
+                continue;
+            }
+
+            String website = candidate.getWebsite().trim();
+            String supermarketName = candidate.getSupermarketName().trim();
+            boolean reachable = supermarketCrawlerClient.webpageContainsIngredient(website, supermarketName);
+            if (!reachable) {
+                continue;
+            }
+
+            CitySupermarket market = new CitySupermarket();
+            market.setCity(city);
+            market.setSupermarketName(supermarketName);
+            market.setOfficialWebsite(website);
+            market.setCatalogSearchUrl(website);
+            market.setNotes("CITY_PROVIDER_DISCOVERY verifiedBy=OFFICIAL_WEB_CRAWL confidence="
+                    + candidate.getSourceConfidence());
+            citySupermarketRepository.save(market);
+        }
+
+        return citySupermarketRepository.findByCityIgnoreCase(city);
+    }
+
+    private boolean isPersistableCandidate(String city, CityDiscoveryCandidate candidate, double minConfidence) {
+        if (candidate == null || candidate.getSupermarketName() == null || candidate.getSupermarketName().isBlank()) {
+            return false;
+        }
+        if (candidate.getWebsite() == null || candidate.getWebsite().isBlank()) {
+            return false;
+        }
+        String website = candidate.getWebsite().trim().toLowerCase();
+        if (!website.startsWith("http://") && !website.startsWith("https://")) {
+            return false;
+        }
+        if (candidate.getSourceConfidence() < minConfidence) {
+            return false;
+        }
+        return !citySupermarketRepository.existsByCityIgnoreCaseAndSupermarketNameIgnoreCase(city, candidate.getSupermarketName());
     }
 
     private String resolveCity(String city) {
@@ -89,26 +145,4 @@ public class SupermarketDiscoveryService {
 
         return baseCatalogUrl + "?q=" + encodedIngredient;
     }
-
-    private boolean urlContainsIngredient(String url, String ingredientName) {
-        if (url == null || url.isBlank() || ingredientName == null || ingredientName.isBlank()) {
-            return false;
-        }
-
-        String normalizedUrl = normalizeForMatch(url);
-        return Stream.of(ingredientName.trim().split("\\s+"))
-                .map(this::normalizeForMatch)
-                .filter(token -> !token.isBlank())
-                .allMatch(normalizedUrl::contains);
-    }
-
-    private String normalizeForMatch(String value) {
-        return value == null
-                ? ""
-                : value.toLowerCase(Locale.ROOT)
-                .replace("+", " ")
-                .replace("%20", " ")
-                .replaceAll("[^a-z0-9]+", " ");
-    }
-
 }
