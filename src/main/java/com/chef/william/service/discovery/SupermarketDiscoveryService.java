@@ -17,8 +17,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
-import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -52,22 +50,26 @@ public class SupermarketDiscoveryService {
             String searchUrl = buildCatalogUrl(market.getCatalogSearchUrl(), ingredientName);
             String crawlTarget = !searchUrl.isBlank() ? searchUrl : market.getOfficialWebsite();
             boolean crawlMatched = supermarketCrawlerClient.webpageContainsIngredient(crawlTarget, ingredientName);
-            boolean urlMatched = urlContainsIngredient(crawlTarget, ingredientName);
-            boolean matched = crawlMatched || urlMatched;
-            String matchSource = crawlMatched ? "OFFICIAL_WEB_CRAWL"
-                    : (urlMatched ? "CATALOG_URL_QUERY_MATCH" : "NO_MATCH_ON_CRAWL");
+
+            if (!crawlMatched) {
+                continue;
+            }
 
             results.add(new SupermarketDiscoveryDTO(
                     effectiveCity,
                     market.getSupermarketName(),
                     market.getOfficialWebsite(),
                     crawlTarget,
-                    matched,
-                    matchSource,
+                    true,
+                    "OFFICIAL_WEB_CRAWL",
                     "DB",
                     LocalDateTime.now()
             ));
+        }
 
+        if (results.isEmpty()) {
+            throw new BusinessException("No verified supermarket matches found for ingredient '"
+                    + ingredientName.trim() + "' in city: " + effectiveCity);
         }
 
         return results;
@@ -82,12 +84,20 @@ public class SupermarketDiscoveryService {
                 continue;
             }
 
+            String website = candidate.getWebsite().trim();
+            String supermarketName = candidate.getSupermarketName().trim();
+            boolean reachable = supermarketCrawlerClient.webpageContainsIngredient(website, supermarketName);
+            if (!reachable) {
+                continue;
+            }
+
             CitySupermarket market = new CitySupermarket();
             market.setCity(city);
-            market.setSupermarketName(candidate.getSupermarketName().trim());
-            market.setOfficialWebsite(candidate.getWebsite().trim());
-            market.setCatalogSearchUrl(candidate.getWebsite().trim());
-            market.setNotes("CITY_PROVIDER_DISCOVERY confidence=" + candidate.getSourceConfidence());
+            market.setSupermarketName(supermarketName);
+            market.setOfficialWebsite(website);
+            market.setCatalogSearchUrl(website);
+            market.setNotes("CITY_PROVIDER_DISCOVERY verifiedBy=OFFICIAL_WEB_CRAWL confidence="
+                    + candidate.getSourceConfidence());
             citySupermarketRepository.save(market);
         }
 
@@ -99,6 +109,10 @@ public class SupermarketDiscoveryService {
             return false;
         }
         if (candidate.getWebsite() == null || candidate.getWebsite().isBlank()) {
+            return false;
+        }
+        String website = candidate.getWebsite().trim().toLowerCase();
+        if (!website.startsWith("http://") && !website.startsWith("https://")) {
             return false;
         }
         if (candidate.getSourceConfidence() < minConfidence) {
@@ -131,26 +145,4 @@ public class SupermarketDiscoveryService {
 
         return baseCatalogUrl + "?q=" + encodedIngredient;
     }
-
-    private boolean urlContainsIngredient(String url, String ingredientName) {
-        if (url == null || url.isBlank() || ingredientName == null || ingredientName.isBlank()) {
-            return false;
-        }
-
-        String normalizedUrl = normalizeForMatch(url);
-        return Stream.of(ingredientName.trim().split("\\s+"))
-                .map(this::normalizeForMatch)
-                .filter(token -> !token.isBlank())
-                .allMatch(normalizedUrl::contains);
-    }
-
-    private String normalizeForMatch(String value) {
-        return value == null
-                ? ""
-                : value.toLowerCase(Locale.ROOT)
-                .replace("+", " ")
-                .replace("%20", " ")
-                .replaceAll("[^a-z0-9]+", " ");
-    }
-
 }

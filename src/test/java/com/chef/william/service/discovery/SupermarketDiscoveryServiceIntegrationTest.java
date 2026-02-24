@@ -48,7 +48,7 @@ class SupermarketDiscoveryServiceIntegrationTest {
     private CityDiscoveryProvider cityDiscoveryProvider;
 
     @Test
-    void dbDiscoveryShouldReturnMatchesForPersistedCitySupermarkets() {
+    void dbDiscoveryShouldReturnOnlyCrawlVerifiedMatchesForPersistedCitySupermarkets() {
         citySupermarketRepository.deleteAll();
         when(cityDiscoveryProvider.discoverSupermarkets(anyString())).thenReturn(List.of());
 
@@ -64,29 +64,18 @@ class SupermarketDiscoveryServiceIntegrationTest {
         lotuss.setOfficialWebsite("https://www.lotuss.com");
         lotuss.setCatalogSearchUrl("https://www.lotuss.com/th/search/{ingredient}");
 
-        CitySupermarket tops = new CitySupermarket();
-        tops.setCity("Bangkok");
-        tops.setSupermarketName("Tops");
-        tops.setOfficialWebsite("https://www.tops.co.th");
-        tops.setCatalogSearchUrl("https://www.tops.co.th/en/search?query={ingredient}");
-
-        citySupermarketRepository.saveAll(List.of(bigC, lotuss, tops));
+        citySupermarketRepository.saveAll(List.of(bigC, lotuss));
 
         when(supermarketCrawlerClient.webpageContainsIngredient(anyString(), eq("Soy Sauce")))
-                .thenReturn(false, false, false, true, false, false);
+                .thenReturn(true, true);
 
         List<SupermarketDiscoveryDTO> first = discoveryService.discover("Bangkok", "Soy Sauce");
 
-        assertEquals(3, first.size());
+        assertEquals(2, first.size());
         assertTrue(first.stream().allMatch(dto -> dto.getDiscoverySource().equals("DB")));
-        assertTrue(first.stream().allMatch(dto -> dto.getMatchSource().equals("CATALOG_URL_QUERY_MATCH")));
+        assertTrue(first.stream().allMatch(dto -> dto.getMatchSource().equals("OFFICIAL_WEB_CRAWL")));
 
-        List<SupermarketDiscoveryDTO> second = discoveryService.discover("Bangkok", "Soy Sauce");
-        assertEquals(3, second.size());
-        assertTrue(second.stream().allMatch(dto -> dto.getDiscoverySource().equals("DB")));
-        assertTrue(second.stream().anyMatch(dto -> dto.getMatchSource().equals("OFFICIAL_WEB_CRAWL")));
-
-        verify(supermarketCrawlerClient, times(6)).webpageContainsIngredient(anyString(), eq("Soy Sauce"));
+        verify(supermarketCrawlerClient, times(2)).webpageContainsIngredient(anyString(), eq("Soy Sauce"));
     }
 
     @Test
@@ -100,6 +89,24 @@ class SupermarketDiscoveryServiceIntegrationTest {
         assertTrue(ex.getMessage().contains("No verified supermarkets found for city: Manila"));
     }
 
+    @Test
+    void discoveryShouldFailWhenNoPersistedMarketCrawlMatchesIngredient() {
+        citySupermarketRepository.deleteAll();
+
+        CitySupermarket bigC = new CitySupermarket();
+        bigC.setCity("Bangkok");
+        bigC.setSupermarketName("Big C");
+        bigC.setOfficialWebsite("https://www.bigc.co.th");
+        bigC.setCatalogSearchUrl("https://www.bigc.co.th/search?q={ingredient}");
+        citySupermarketRepository.save(bigC);
+
+        when(supermarketCrawlerClient.webpageContainsIngredient(anyString(), eq("Beef"))).thenReturn(false);
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> discoveryService.discover("Bangkok", "Beef"));
+
+        assertTrue(ex.getMessage().contains("No verified supermarket matches found"));
+    }
 
     @Test
     void discoveryShouldNotFallbackToBangkokRowsForAnotherCity() {
@@ -122,7 +129,7 @@ class SupermarketDiscoveryServiceIntegrationTest {
     }
 
     @Test
-    void discoveryShouldUseCityProviderCandidatesWhenCityHasNoPersistedRows() {
+    void discoveryShouldPersistOnlyReachableProviderCandidates() {
         citySupermarketRepository.deleteAll();
 
         when(cityDiscoveryProvider.discoverSupermarkets("Yangon"))
@@ -131,8 +138,8 @@ class SupermarketDiscoveryServiceIntegrationTest {
                         "https://www.citymart.com.mm/search/{ingredient}",
                         0.82
                 )));
-        when(supermarketCrawlerClient.webpageContainsIngredient(anyString(), eq("Soy Sauce")))
-                .thenReturn(false);
+        when(supermarketCrawlerClient.webpageContainsIngredient(anyString(), eq("City Mart"))).thenReturn(true);
+        when(supermarketCrawlerClient.webpageContainsIngredient(anyString(), eq("Soy Sauce"))).thenReturn(true);
 
         List<SupermarketDiscoveryDTO> result = discoveryService.discover("Yangon", "Soy Sauce");
 
@@ -144,15 +151,16 @@ class SupermarketDiscoveryServiceIntegrationTest {
     }
 
     @Test
-    void discoveryShouldNotPersistLowConfidenceCandidates() {
+    void discoveryShouldNotPersistUnreachableProviderCandidates() {
         citySupermarketRepository.deleteAll();
 
         when(cityDiscoveryProvider.discoverSupermarkets("Oslo"))
                 .thenReturn(List.of(new CityDiscoveryCandidate(
                         "Unknown Market",
                         "https://example.com",
-                        0.25
+                        0.9
                 )));
+        when(supermarketCrawlerClient.webpageContainsIngredient(anyString(), eq("Unknown Market"))).thenReturn(false);
 
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> discoveryService.discover("Oslo", "Rice"));
