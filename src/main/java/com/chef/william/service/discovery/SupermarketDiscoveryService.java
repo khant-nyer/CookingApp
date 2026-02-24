@@ -57,9 +57,13 @@ public class SupermarketDiscoveryService {
             CatalogVerificationResult verification = supermarketCatalogVerifier
                     .verifyIngredient(crawlTarget, ingredientName);
 
-            if (!verification.isMatched()) {
+            if (!verification.isMatched() && !supportsCatalogSearchTemplate(market)) {
                 continue;
             }
+
+            String matchSource = verification.isMatched()
+                    ? verification.getMatchSource()
+                    : "CATALOG_SEARCH_URL_TEMPLATE";
 
             results.add(new SupermarketDiscoveryDTO(
                     effectiveCity,
@@ -67,7 +71,7 @@ public class SupermarketDiscoveryService {
                     market.getOfficialWebsite(),
                     crawlTarget,
                     true,
-                    verification.getMatchSource(),
+                    matchSource,
                     "DB",
                     LocalDateTime.now()
             ));
@@ -162,6 +166,15 @@ public class SupermarketDiscoveryService {
         }
 
         return city.trim();
+    }
+
+    private boolean supportsCatalogSearchTemplate(CitySupermarket market) {
+        if (market == null) {
+            return false;
+        }
+
+        String catalogSearchUrl = market.getCatalogSearchUrl();
+        return catalogSearchUrl != null && catalogSearchUrl.contains("{ingredient}");
     }
 
     private String buildCatalogUrl(String baseCatalogUrl, String ingredientName) {

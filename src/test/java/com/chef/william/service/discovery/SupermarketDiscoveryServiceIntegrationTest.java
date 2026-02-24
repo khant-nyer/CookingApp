@@ -138,6 +138,20 @@ class SupermarketDiscoveryServiceIntegrationTest {
 
 
     @Test
+    void discoveryShouldReturnTemplateBackedFallbackMarketWhenCrawlVerificationFails() {
+        citySupermarketRepository.deleteAll();
+
+        when(cityDiscoveryProvider.discoverSupermarkets("London")).thenReturn(List.of());
+        when(supermarketCatalogVerifier.verifyIngredient(anyString(), eq("Soy Sauce")))
+                .thenReturn(new CatalogVerificationResult(false, "NO_MATCH_ON_CRAWL"));
+
+        List<SupermarketDiscoveryDTO> result = discoveryService.discover("London", "Soy Sauce");
+
+        assertTrue(result.stream().anyMatch(dto -> dto.getSupermarketName().equals("Sainsbury's")));
+        assertTrue(result.stream().anyMatch(dto -> dto.getMatchSource().equals("CATALOG_SEARCH_URL_TEMPLATE")));
+    }
+
+    @Test
     void discoveryShouldUseConfiguredLondonFallbackMarketsWhenProviderHasNoCandidates() {
         citySupermarketRepository.deleteAll();
 
