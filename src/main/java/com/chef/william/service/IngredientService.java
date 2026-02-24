@@ -109,8 +109,8 @@ public class IngredientService {
     }
 
     @Transactional
-    public List<SupermarketDiscoveryDTO> discoverPopularSupermarkets(Long userId, String city, String ingredientName) {
-        return ingredientDiscoveryFacade.discoverPopularSupermarkets(userId, city, ingredientName);
+    public List<SupermarketDiscoveryDTO> discoverPopularSupermarkets(String city, String ingredientName) {
+        return ingredientDiscoveryFacade.discoverPopularSupermarkets(city, ingredientName);
     }
 
     @Transactional(readOnly = true)
