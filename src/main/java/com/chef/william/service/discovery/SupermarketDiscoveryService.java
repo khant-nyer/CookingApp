@@ -135,6 +135,12 @@ public class SupermarketDiscoveryService {
             }
 
             String website = normalizeUrl(candidate.getWebsite());
+            if (isBlockedCandidate(candidate.getSupermarketName(), website)) {
+                stats.rejectedCandidates++;
+                log.debug("DISCOVERY_CANDIDATE_REJECT city={} supermarket={} reason=BLOCKED_DOMAIN",
+                        city, candidate.getSupermarketName());
+                continue;
+            }
             String key = normalize(candidate.getSupermarketName());
             CandidateMarket existing = candidates.get(key);
             if (existing == null || candidate.getSourceConfidence() > existing.confidence) {
@@ -150,6 +156,10 @@ public class SupermarketDiscoveryService {
                                      DiscoveryStats stats) {
         LocalDateTime now = LocalDateTime.now();
         for (CitySupermarket market : cached) {
+            if (isBlockedCandidate(market.getSupermarketName(), market.getOfficialWebsite())) {
+                stats.rejectedCandidates++;
+                continue;
+            }
             String key = normalize(market.getSupermarketName());
             double confidence = market.getVerificationConfidence() == null ? 0.6 : market.getVerificationConfidence();
             if (market.getTtlExpiresAt() != null && market.getTtlExpiresAt().isBefore(now)) {
@@ -177,6 +187,10 @@ public class SupermarketDiscoveryService {
                 continue;
             }
 
+            if (isBlockedCandidate(fallback.getSupermarketName(), fallback.getOfficialWebsite())) {
+                stats.rejectedCandidates++;
+                continue;
+            }
             String key = normalize(fallback.getSupermarketName());
             boolean isNew = !candidates.containsKey(key);
             candidates.putIfAbsent(key, new CandidateMarket(
@@ -275,6 +289,21 @@ public class SupermarketDiscoveryService {
 
     private boolean cityMatches(String city, String configuredCity) {
         return configuredCity != null && configuredCity.trim().equalsIgnoreCase(city.trim());
+    }
+
+    private boolean isBlockedCandidate(String supermarketName, String website) {
+        String normalizedName = normalize(supermarketName);
+        String host = extractHost(normalizeUrl(website));
+
+        if (normalizedName.contains("duckduckgo") || normalizedName.contains("google") || normalizedName.contains("bing")) {
+            return true;
+        }
+
+        return host.contains("duckduckgo.com")
+                || host.contains("google.")
+                || host.contains("bing.com")
+                || host.contains("search.yahoo.com")
+                || host.contains("yahoo.com");
     }
 
     private String normalize(String value) {

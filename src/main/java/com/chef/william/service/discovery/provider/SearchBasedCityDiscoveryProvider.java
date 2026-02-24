@@ -46,7 +46,8 @@ public class SearchBasedCityDiscoveryProvider implements CityDiscoverySourceProv
                 if (host.isBlank() || !host.contains(".")) {
                     continue;
                 }
-                if (host.contains("wikipedia.org") || host.contains("facebook.com") || host.contains("tripadvisor")) {
+                if (host.contains("wikipedia.org") || host.contains("facebook.com") || host.contains("tripadvisor")
+                        || isSearchEngineHost(host)) {
                     continue;
                 }
 
@@ -64,6 +65,14 @@ public class SearchBasedCityDiscoveryProvider implements CityDiscoverySourceProv
     @Override
     public String sourceName() {
         return "search";
+    }
+
+    private boolean isSearchEngineHost(String host) {
+        return host.contains("duckduckgo.com")
+                || host.contains("google.")
+                || host.contains("bing.com")
+                || host.contains("search.yahoo.com")
+                || host.contains("yahoo.com");
     }
 
     private String safeHost(String url) {

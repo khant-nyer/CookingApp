@@ -212,6 +212,27 @@ class SupermarketDiscoveryServiceIntegrationTest {
         assertEquals("Market B", result.get(0).getSupermarketName());
     }
 
+
+    @Test
+    void discoveryShouldIgnoreSearchEngineCandidatesFromCacheAndLive() {
+        citySupermarketRepository.deleteAll();
+
+        CitySupermarket badCached = new CitySupermarket();
+        badCached.setCity("Yangon");
+        badCached.setSupermarketName("DuckDuckGo");
+        badCached.setOfficialWebsite("https://html.duckduckgo.com");
+        badCached.setCatalogSearchUrl("https://html.duckduckgo.com");
+        citySupermarketRepository.save(badCached);
+
+        when(cityDiscoveryProvider.discoverSupermarkets("Yangon"))
+                .thenReturn(List.of(new CityDiscoveryCandidate("DuckDuckGo", "https://duckduckgo.com", 0.95)));
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> discoveryService.discover("Yangon", "Soy Sauce"));
+
+        assertTrue(ex.getMessage().contains("No verified supermarkets found for city: Yangon"));
+    }
+
     @Test
     void discoveryShouldNotPersistUnreachableProviderCandidates() {
         citySupermarketRepository.deleteAll();
