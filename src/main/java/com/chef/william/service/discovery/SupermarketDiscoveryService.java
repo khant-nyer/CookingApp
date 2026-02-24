@@ -1,6 +1,5 @@
 package com.chef.william.service.discovery;
 
-import com.chef.william.config.SupermarketDiscoveryProperties;
 import com.chef.william.dto.SupermarketDiscoveryDTO;
 import com.chef.william.exception.BusinessException;
 import com.chef.william.model.CitySupermarket;
@@ -17,7 +16,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.stream.Stream;
 
 @Service
@@ -26,7 +24,6 @@ public class SupermarketDiscoveryService {
 
     private final CitySupermarketRepository citySupermarketRepository;
     private final SupermarketCrawlerClient supermarketCrawlerClient;
-    private final SupermarketDiscoveryProperties discoveryProperties;
 
     @Transactional
     public List<SupermarketDiscoveryDTO> discover(String city, String ingredientName) {
@@ -37,15 +34,13 @@ public class SupermarketDiscoveryService {
         String effectiveCity = resolveCity(city);
         List<CitySupermarket> persistedMarkets = citySupermarketRepository.findByCityIgnoreCase(effectiveCity.trim());
 
-        boolean usingFallback = persistedMarkets.isEmpty();
-        List<CitySupermarket> discoveryMarkets = usingFallback
-                ? getFallbackCitySupermarkets(effectiveCity)
-                : persistedMarkets;
+        if (persistedMarkets.isEmpty()) {
+            throw new BusinessException("No verified supermarkets found for city: " + effectiveCity);
+        }
 
         List<SupermarketDiscoveryDTO> results = new ArrayList<>();
-        List<CitySupermarket> matchedFromFallback = new ArrayList<>();
 
-        for (CitySupermarket market : discoveryMarkets) {
+        for (CitySupermarket market : persistedMarkets) {
             String searchUrl = buildCatalogUrl(market.getCatalogSearchUrl(), ingredientName);
             String crawlTarget = !searchUrl.isBlank() ? searchUrl : market.getOfficialWebsite();
             boolean crawlMatched = supermarketCrawlerClient.webpageContainsIngredient(crawlTarget, ingredientName);
@@ -61,17 +56,10 @@ public class SupermarketDiscoveryService {
                     crawlTarget,
                     matched,
                     matchSource,
-                    usingFallback ? "FALLBACK" : "DB",
+                    "DB",
                     LocalDateTime.now()
             ));
 
-            if (usingFallback && matched) {
-                matchedFromFallback.add(market);
-            }
-        }
-
-        if (!matchedFromFallback.isEmpty()) {
-            saveDiscoveredSupermarkets(effectiveCity, matchedFromFallback);
         }
 
         return results;
@@ -102,53 +90,25 @@ public class SupermarketDiscoveryService {
         return baseCatalogUrl + "?q=" + encodedIngredient;
     }
 
-    private List<CitySupermarket> getFallbackCitySupermarkets(String city) {
-        String normalizedCity = city == null ? "" : city.trim().toLowerCase(Locale.ROOT);
+    private boolean urlContainsIngredient(String url, String ingredientName) {
+        if (url == null || url.isBlank() || ingredientName == null || ingredientName.isBlank()) {
+            return false;
+        }
 
-        List<SupermarketDiscoveryProperties.FallbackMarket> citySpecific = discoveryProperties.getFallbackMarkets().stream()
-                .filter(entry -> entry.getCity() != null && entry.getCity().trim().toLowerCase(Locale.ROOT).equals(normalizedCity))
-                .toList();
-
-        List<SupermarketDiscoveryProperties.FallbackMarket> seeds = citySpecific.isEmpty()
-                ? deduplicateFallbackMarkets(discoveryProperties.getFallbackMarkets())
-                : citySpecific;
-
-        return seeds.stream()
-                .map(entry -> {
-                    CitySupermarket market = new CitySupermarket();
-                    market.setCity(city.trim());
-                    market.setSupermarketName(entry.getSupermarketName());
-                    market.setOfficialWebsite(entry.getOfficialWebsite());
-                    market.setCatalogSearchUrl(entry.getCatalogSearchUrl());
-                    market.setNotes(entry.getNotes());
-                    return market;
-                })
-                .toList();
+        String normalizedUrl = normalizeForMatch(url);
+        return Stream.of(ingredientName.trim().split("\\s+"))
+                .map(this::normalizeForMatch)
+                .filter(token -> !token.isBlank())
+                .allMatch(normalizedUrl::contains);
     }
 
-    private List<SupermarketDiscoveryProperties.FallbackMarket> deduplicateFallbackMarkets(
-            List<SupermarketDiscoveryProperties.FallbackMarket> fallbackMarkets) {
-        Map<String, SupermarketDiscoveryProperties.FallbackMarket> deduplicated = new LinkedHashMap<>();
-        for (SupermarketDiscoveryProperties.FallbackMarket market : fallbackMarkets) {
-            String key = (market.getSupermarketName() == null ? "" : market.getSupermarketName().trim().toLowerCase(Locale.ROOT))
-                    + "|"
-                    + (market.getOfficialWebsite() == null ? "" : market.getOfficialWebsite().trim().toLowerCase(Locale.ROOT));
-            deduplicated.putIfAbsent(key, market);
-        }
-        return deduplicated.values().stream().toList();
-    }
-
-    private void saveDiscoveredSupermarkets(String city, List<CitySupermarket> markets) {
-        List<CitySupermarket> toSave = markets.stream()
-                .filter(market -> !citySupermarketRepository
-                        .existsByCityIgnoreCaseAndSupermarketNameIgnoreCase(city, market.getSupermarketName()))
-                .peek(market -> market.setId(null))
-                .peek(market -> market.setCity(city))
-                .toList();
-
-        if (!toSave.isEmpty()) {
-            citySupermarketRepository.saveAll(toSave);
-        }
+    private String normalizeForMatch(String value) {
+        return value == null
+                ? ""
+                : value.toLowerCase(Locale.ROOT)
+                .replace("+", " ")
+                .replace("%20", " ")
+                .replaceAll("[^a-z0-9]+", " ");
     }
 
     private boolean urlContainsIngredient(String url, String ingredientName) {
