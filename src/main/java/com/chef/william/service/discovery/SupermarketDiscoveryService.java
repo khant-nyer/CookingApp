@@ -143,9 +143,10 @@ public class SupermarketDiscoveryService {
             }
             String key = normalize(candidate.getSupermarketName());
             CandidateMarket existing = candidates.get(key);
-            if (existing == null || candidate.getSourceConfidence() > existing.confidence) {
-                candidates.put(key, new CandidateMarket(candidate.getSupermarketName().trim(), website, website,
-                        candidate.getSourceConfidence(), "LIVE_DISCOVERY"));
+            CandidateMarket incoming = new CandidateMarket(candidate.getSupermarketName().trim(), website, website,
+                    candidate.getSourceConfidence(), "LIVE_DISCOVERY");
+            if (shouldReplaceLiveCandidate(existing, incoming)) {
+                candidates.put(key, incoming);
                 stats.liveCandidates++;
             }
         }

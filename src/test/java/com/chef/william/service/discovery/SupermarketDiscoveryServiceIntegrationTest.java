@@ -213,6 +213,26 @@ class SupermarketDiscoveryServiceIntegrationTest {
     }
 
 
+
+    @Test
+    void discoveryShouldPreferWebsiteCandidateOverHigherConfidenceBlankWebsite() {
+        citySupermarketRepository.deleteAll();
+
+        when(cityDiscoveryProvider.discoverSupermarkets("Manila"))
+                .thenReturn(List.of(
+                        new CityDiscoveryCandidate("Metro Market", "", 0.90),
+                        new CityDiscoveryCandidate("Metro Market", "https://metro.example.com", 0.60)
+                ));
+        when(supermarketCatalogVerifier.verifyIngredient(anyString(), eq("Soy Sauce")))
+                .thenReturn(new CatalogVerificationResult(true, "CATALOG_SEARCH_URL_TEMPLATE", 0.6, ""));
+
+        List<SupermarketDiscoveryDTO> result = discoveryService.discover("Manila", "Soy Sauce");
+
+        assertEquals(1, result.size());
+        assertEquals("Metro Market", result.get(0).getSupermarketName());
+        assertTrue(result.get(0).getCatalogSearchUrl().contains("metro.example.com"));
+    }
+
     @Test
     void discoveryShouldIgnoreSearchEngineCandidatesFromCacheAndLive() {
         citySupermarketRepository.deleteAll();

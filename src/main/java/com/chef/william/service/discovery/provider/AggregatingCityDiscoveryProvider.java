@@ -29,13 +29,37 @@ public class AggregatingCityDiscoveryProvider implements CityDiscoveryProvider {
 
                 String key = normalize(candidate.getSupermarketName());
                 CityDiscoveryCandidate existing = deduped.get(key);
-                if (existing == null || candidate.getSourceConfidence() > existing.getSourceConfidence()) {
+                if (shouldReplaceCandidate(existing, candidate)) {
                     deduped.put(key, candidate);
                 }
             }
         }
 
         return new ArrayList<>(deduped.values());
+    }
+
+    private boolean shouldReplaceCandidate(CityDiscoveryCandidate existing, CityDiscoveryCandidate incoming) {
+        if (existing == null) {
+            return true;
+        }
+
+        boolean existingHasWebsite = hasUsableWebsite(existing);
+        boolean incomingHasWebsite = hasUsableWebsite(incoming);
+
+        if (incomingHasWebsite && !existingHasWebsite) {
+            return true;
+        }
+        if (!incomingHasWebsite && existingHasWebsite) {
+            return false;
+        }
+
+        return incoming.getSourceConfidence() > existing.getSourceConfidence();
+    }
+
+    private boolean hasUsableWebsite(CityDiscoveryCandidate candidate) {
+        return candidate != null
+                && candidate.getWebsite() != null
+                && !candidate.getWebsite().isBlank();
     }
 
     private String normalize(String value) {
