@@ -5,6 +5,8 @@ import com.chef.william.exception.BusinessException;
 import com.chef.william.model.CitySupermarket;
 import com.chef.william.repository.CitySupermarketRepository;
 import com.chef.william.service.crawler.SupermarketCrawlerClient;
+import com.chef.william.service.discovery.provider.CityDiscoveryCandidate;
+import com.chef.william.service.discovery.provider.CityDiscoveryProvider;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -42,9 +44,13 @@ class SupermarketDiscoveryServiceIntegrationTest {
     @MockBean
     private SupermarketCrawlerClient supermarketCrawlerClient;
 
+    @MockBean
+    private CityDiscoveryProvider cityDiscoveryProvider;
+
     @Test
     void dbDiscoveryShouldReturnMatchesForPersistedCitySupermarkets() {
         citySupermarketRepository.deleteAll();
+        when(cityDiscoveryProvider.discoverSupermarkets(anyString())).thenReturn(List.of());
 
         CitySupermarket bigC = new CitySupermarket();
         bigC.setCity("Bangkok");
@@ -86,11 +92,52 @@ class SupermarketDiscoveryServiceIntegrationTest {
     @Test
     void discoveryShouldFailForCityWithoutVerifiedSupermarkets() {
         citySupermarketRepository.deleteAll();
+        when(cityDiscoveryProvider.discoverSupermarkets("Manila")).thenReturn(List.of());
 
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> discoveryService.discover("Manila", "Sunflower Oil"));
 
         assertTrue(ex.getMessage().contains("No verified supermarkets found for city: Manila"));
+    }
+
+    @Test
+    void discoveryShouldUseCityProviderCandidatesWhenCityHasNoPersistedRows() {
+        citySupermarketRepository.deleteAll();
+
+        when(cityDiscoveryProvider.discoverSupermarkets("Yangon"))
+                .thenReturn(List.of(new CityDiscoveryCandidate(
+                        "City Mart",
+                        "https://www.citymart.com.mm/search/{ingredient}",
+                        0.82
+                )));
+        when(supermarketCrawlerClient.webpageContainsIngredient(anyString(), eq("Soy Sauce")))
+                .thenReturn(false);
+
+        List<SupermarketDiscoveryDTO> result = discoveryService.discover("Yangon", "Soy Sauce");
+
+        assertEquals(1, result.size());
+        assertEquals("Yangon", result.get(0).getCity());
+        assertEquals("City Mart", result.get(0).getSupermarketName());
+        assertEquals("DB", result.get(0).getDiscoverySource());
+        assertTrue(citySupermarketRepository.existsByCityIgnoreCaseAndSupermarketNameIgnoreCase("Yangon", "City Mart"));
+    }
+
+    @Test
+    void discoveryShouldNotPersistLowConfidenceCandidates() {
+        citySupermarketRepository.deleteAll();
+
+        when(cityDiscoveryProvider.discoverSupermarkets("Oslo"))
+                .thenReturn(List.of(new CityDiscoveryCandidate(
+                        "Unknown Market",
+                        "https://example.com",
+                        0.25
+                )));
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> discoveryService.discover("Oslo", "Rice"));
+
+        assertTrue(ex.getMessage().contains("No verified supermarkets found for city: Oslo"));
+        assertTrue(citySupermarketRepository.findByCityIgnoreCase("Oslo").isEmpty());
     }
 
 }
