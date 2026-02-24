@@ -233,6 +233,28 @@ class SupermarketDiscoveryServiceIntegrationTest {
         assertTrue(result.get(0).getCatalogSearchUrl().contains("metro.example.com"));
     }
 
+
+    @Test
+    void discoveryShouldReturnTemplateBackedMatchForGenericWebsiteCandidate() {
+        citySupermarketRepository.deleteAll();
+
+        when(cityDiscoveryProvider.discoverSupermarkets("New York"))
+                .thenReturn(List.of(new CityDiscoveryCandidate(
+                        "Fresh Market NYC",
+                        "https://freshmarket.example.com",
+                        0.78
+                )));
+        when(supermarketCatalogVerifier.verifyIngredient(anyString(), eq("soy sauce")))
+                .thenReturn(new CatalogVerificationResult(false, "NO_MATCH_ON_CRAWL", 0.0, "NO_MATCH_ON_CRAWL"));
+
+        List<SupermarketDiscoveryDTO> result = discoveryService.discover("New York", "soy sauce");
+
+        assertEquals(1, result.size());
+        assertEquals("Fresh Market NYC", result.get(0).getSupermarketName());
+        assertEquals("CATALOG_SEARCH_URL_TEMPLATE", result.get(0).getMatchSource());
+        assertTrue(result.get(0).getCatalogSearchUrl().contains("q=soy+sauce"));
+    }
+
     @Test
     void discoveryShouldIgnoreSearchEngineCandidatesFromCacheAndLive() {
         citySupermarketRepository.deleteAll();

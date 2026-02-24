@@ -143,7 +143,8 @@ public class SupermarketDiscoveryService {
             }
             String key = normalize(candidate.getSupermarketName());
             CandidateMarket existing = candidates.get(key);
-            CandidateMarket incoming = new CandidateMarket(candidate.getSupermarketName().trim(), website, website,
+            String catalogTemplate = inferCatalogSearchTemplate(website);
+            CandidateMarket incoming = new CandidateMarket(candidate.getSupermarketName().trim(), website, catalogTemplate,
                     candidate.getSourceConfidence(), "LIVE_DISCOVERY");
             if (shouldReplaceLiveCandidate(existing, incoming)) {
                 candidates.put(key, incoming);
@@ -169,7 +170,7 @@ public class SupermarketDiscoveryService {
             candidates.putIfAbsent(key, new CandidateMarket(
                     market.getSupermarketName(),
                     normalizeUrl(market.getOfficialWebsite()),
-                    normalizeUrl(market.getCatalogSearchUrl()),
+                    normalizeCatalogTemplate(normalizeUrl(market.getCatalogSearchUrl()), normalizeUrl(market.getOfficialWebsite())),
                     confidence,
                     "CACHE"
             ));
@@ -197,7 +198,7 @@ public class SupermarketDiscoveryService {
             candidates.putIfAbsent(key, new CandidateMarket(
                     fallback.getSupermarketName().trim(),
                     normalizeUrl(fallback.getOfficialWebsite()),
-                    normalizeUrl(fallback.getCatalogSearchUrl()),
+                    normalizeCatalogTemplate(normalizeUrl(fallback.getCatalogSearchUrl()), normalizeUrl(fallback.getOfficialWebsite())),
                     0.45,
                     "BOOTSTRAP_SEED"
             ));
@@ -263,7 +264,7 @@ public class SupermarketDiscoveryService {
         market.setNormalizedCity(normalize(city));
         market.setNormalizedSupermarketName(normalize(candidate.name));
         market.setOfficialWebsite(candidate.website);
-        market.setCatalogSearchUrl(candidate.catalogUrl.isBlank() ? candidate.website : candidate.catalogUrl);
+        market.setCatalogSearchUrl(normalizeCatalogTemplate(candidate.catalogUrl, candidate.website));
         market.setCanonicalDomain(extractHost(candidate.website));
         market.setSourceProvider(candidate.source);
         market.setLastDiscoveryAt(now);
@@ -304,6 +305,33 @@ public class SupermarketDiscoveryService {
         }
 
         return baseCatalogUrl + "?q=" + encodedIngredient;
+    }
+
+    private String normalizeCatalogTemplate(String catalogUrl, String officialWebsite) {
+        String normalizedCatalog = normalizeUrl(catalogUrl);
+        if (normalizedCatalog.contains("{ingredient}")) {
+            return normalizedCatalog;
+        }
+
+        String fallback = inferCatalogSearchTemplate(normalizedCatalog);
+        if (!fallback.isBlank()) {
+            return fallback;
+        }
+        return inferCatalogSearchTemplate(normalizeUrl(officialWebsite));
+    }
+
+    private String inferCatalogSearchTemplate(String website) {
+        String normalizedWebsite = normalizeUrl(website);
+        if (normalizedWebsite.isBlank()) {
+            return "";
+        }
+        if (normalizedWebsite.contains("{ingredient}")) {
+            return normalizedWebsite;
+        }
+        if (normalizedWebsite.contains("?")) {
+            return normalizedWebsite + "&q={ingredient}";
+        }
+        return normalizedWebsite + "?q={ingredient}";
     }
 
     private boolean cityMatches(String city, String configuredCity) {
