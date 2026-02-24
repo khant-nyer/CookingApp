@@ -13,6 +13,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.Stream;
@@ -87,6 +88,27 @@ public class SupermarketDiscoveryService {
         }
 
         return baseCatalogUrl + "?q=" + encodedIngredient;
+    }
+
+    private boolean urlContainsIngredient(String url, String ingredientName) {
+        if (url == null || url.isBlank() || ingredientName == null || ingredientName.isBlank()) {
+            return false;
+        }
+
+        String normalizedUrl = normalizeForMatch(url);
+        return Stream.of(ingredientName.trim().split("\\s+"))
+                .map(this::normalizeForMatch)
+                .filter(token -> !token.isBlank())
+                .allMatch(normalizedUrl::contains);
+    }
+
+    private String normalizeForMatch(String value) {
+        return value == null
+                ? ""
+                : value.toLowerCase(Locale.ROOT)
+                .replace("+", " ")
+                .replace("%20", " ")
+                .replaceAll("[^a-z0-9]+", " ");
     }
 
     private boolean urlContainsIngredient(String url, String ingredientName) {
