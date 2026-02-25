@@ -42,7 +42,4 @@ public class Ingredient {
     @OneToMany(mappedBy = "ingredient", fetch = FetchType.LAZY)
     private List<RecipeIngredient> recipeIngredients = new ArrayList<>();
 
-
-    @OneToMany(mappedBy = "ingredient", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    private List<IngredientStoreListing> storeListings = new ArrayList<>();
 }

@@ -1,11 +1,9 @@
 package com.chef.william.service.mapper;
 
 import com.chef.william.dto.IngredientDTO;
-import com.chef.william.dto.IngredientStoreListingDTO;
 import com.chef.william.dto.NutritionDTO;
 import com.chef.william.exception.BusinessException;
 import com.chef.william.model.Ingredient;
-import com.chef.william.model.IngredientStoreListing;
 import com.chef.william.model.Nutrition;
 import com.chef.william.model.enums.Nutrients;
 import com.chef.william.model.enums.Unit;
@@ -105,44 +103,7 @@ public class IngredientMapper {
             dto.setNutritionList(new ArrayList<>());
         }
 
-        if (entity.getStoreListings() != null) {
-            dto.setNearbyStoreListings(entity.getStoreListings().stream()
-                    .map(this::toStoreListingDto)
-                    .sorted((left, right) -> {
-                        if (left.getDistanceKm() == null && right.getDistanceKm() == null) {
-                            return 0;
-                        }
-                        if (left.getDistanceKm() == null) {
-                            return 1;
-                        }
-                        if (right.getDistanceKm() == null) {
-                            return -1;
-                        }
-                        return left.getDistanceKm().compareTo(right.getDistanceKm());
-                    })
-                    .collect(Collectors.toList()));
-        } else {
-            dto.setNearbyStoreListings(new ArrayList<>());
-        }
-
         return dto;
     }
 
-    public IngredientStoreListingDTO toStoreListingDto(IngredientStoreListing listing) {
-        return new IngredientStoreListingDTO(
-                listing.getId(),
-                listing.getStoreName(),
-                listing.getStoreAddress(),
-                listing.getStorePlaceId(),
-                listing.getLatitude(),
-                listing.getLongitude(),
-                listing.getPrice(),
-                listing.getCurrency(),
-                listing.getInStock(),
-                listing.getDistanceKm(),
-                listing.getSourceProvider(),
-                listing.getCapturedAt(),
-                listing.getExpiresAt()
-        );
-    }
 }
