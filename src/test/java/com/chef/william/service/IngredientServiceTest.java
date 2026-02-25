@@ -3,12 +3,13 @@ package com.chef.william.service;
 import com.chef.william.dto.IngredientDTO;
 import com.chef.william.dto.NutritionDTO;
 import com.chef.william.exception.BusinessException;
-import com.chef.william.exception.ResourceNotFoundException;
 import com.chef.william.model.Ingredient;
 import com.chef.william.model.Nutrition;
 import com.chef.william.model.enums.Nutrients;
 import com.chef.william.model.enums.Unit;
 import com.chef.william.repository.IngredientRepository;
+import com.chef.william.service.ingredient.IngredientSearchService;
+import com.chef.william.service.mapper.IngredientMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -22,6 +23,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -29,6 +31,12 @@ class IngredientServiceTest {
 
     @Mock
     private IngredientRepository ingredientRepository;
+
+    @Mock
+    private IngredientMapper ingredientMapper;
+
+    @Mock
+    private IngredientSearchService ingredientSearchService;
 
 
     @InjectMocks
@@ -72,6 +80,19 @@ class IngredientServiceTest {
 
         when(ingredientRepository.findById(1L)).thenReturn(Optional.of(ingredient));
         when(ingredientRepository.save(any(Ingredient.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(ingredientMapper.toDto(any(Ingredient.class))).thenAnswer(invocation -> {
+            Ingredient source = invocation.getArgument(0);
+            IngredientDTO mapped = new IngredientDTO();
+            mapped.setId(source.getId());
+            mapped.setName(source.getName());
+            mapped.setServingAmount(source.getServingAmount());
+            mapped.setServingUnit(Unit.fromAbbreviation(source.getServingUnit()));
+            List<NutritionDTO> nutrition = source.getNutritionList().stream()
+                    .map(n -> new NutritionDTO(n.getId(), n.getNutrient(), n.getValue(), n.getUnit()))
+                    .toList();
+            mapped.setNutritionList(nutrition);
+            return mapped;
+        });
 
         IngredientDTO result = ingredientService.updateIngredient(1L, update);
 
@@ -89,6 +110,13 @@ class IngredientServiceTest {
         ingredient.setImageUrl("https://img.example/salt.jpg");
 
         when(ingredientRepository.findById(5L)).thenReturn(Optional.of(ingredient));
+        IngredientDTO mapped = new IngredientDTO();
+        mapped.setId(5L);
+        mapped.setName("Salt");
+        mapped.setServingAmount(100.0);
+        mapped.setServingUnit(Unit.G);
+        mapped.setImageUrl("https://img.example/salt.jpg");
+        when(ingredientMapper.toDto(ingredient)).thenReturn(mapped);
 
         IngredientDTO dto = ingredientService.getIngredientById(5L);
 
@@ -105,6 +133,8 @@ class IngredientServiceTest {
         ingredient.setServingUnit("gramz");
 
         when(ingredientRepository.findById(6L)).thenReturn(Optional.of(ingredient));
+        when(ingredientMapper.toDto(ingredient))
+                .thenThrow(new BusinessException("Unsupported serving unit found in database: gramz"));
 
         assertThrows(BusinessException.class, () -> ingredientService.getIngredientById(6L));
     }
@@ -112,6 +142,9 @@ class IngredientServiceTest {
 
     @Test
     void searchIngredientByNutrientThrowsForInvalidNutrient() {
+        when(ingredientSearchService.searchByNutrient(eq("INVALID"), eq(1.0)))
+                .thenThrow(new BusinessException("Invalid nutrient"));
+
         assertThrows(BusinessException.class,
                 () -> ingredientService.searchIngredientByNutrient("INVALID", 1.0));
     }

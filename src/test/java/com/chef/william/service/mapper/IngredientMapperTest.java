@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -46,7 +47,10 @@ class IngredientMapperTest {
         dto.setNutritionList(List.of(new NutritionDTO(null, Nutrients.PROTEIN, 12.3, "g")));
 
         assertDoesNotThrow(() -> ingredientMapper.updateEntityFromDto(dto, entity));
-        assertEquals(1, entity.getNutritionList().size());
+        assertEquals(2, entity.getNutritionList().size());
+        assertEquals(2, entity.getNutritionList().stream()
+                .filter(n -> n.getNutrient() == Nutrients.PROTEIN)
+                .collect(Collectors.toList()).size());
         assertEquals(12.3, entity.getNutritionList().get(0).getValue());
         assertEquals("https://img.example/egg.jpg", entity.getImageUrl());
     }
