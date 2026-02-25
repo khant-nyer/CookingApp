@@ -14,6 +14,7 @@ import java.util.List;
 public class DiscoverSupermarketsService {
 
     private final CountryDetectionService countryDetectionService;
+    private final SupermarketDiscoveryCrawler supermarketDiscoveryCrawler;
 
     public DiscoverSupermarketsResponse discoverSupermarkets(DiscoverSupermarketsRequest request) {
         CountryResolutionResult countryResolution = countryDetectionService.detectCountryCode(request.city());
@@ -22,29 +23,57 @@ public class DiscoverSupermarketsService {
             return fallback(
                     request.city(),
                     countryResolution,
-                    "We couldn’t confidently detect the country for this city. Please try a more specific city name."
+                    "We couldn’t confidently detect the country for this city. Please try a more specific city name.",
+                    "phase0"
             );
         }
 
+        List<DiscoveredSupermarket> discoveredMarkets = supermarketDiscoveryCrawler
+                .discover(request.city(), countryResolution.countryCode());
+
+        if (discoveredMarkets.isEmpty()) {
+            return fallback(
+                    request.city(),
+                    countryResolution,
+                    "No online supermarkets were discovered for this location yet.",
+                    "phase1"
+            );
+        }
+
+        List<SupermarketDiscoveryResult> data = discoveredMarkets.stream()
+                .map(market -> new SupermarketDiscoveryResult(
+                        market.name(),
+                        market.homepage(),
+                        null,
+                        false,
+                        market.confidence()
+                ))
+                .toList();
+
         return new DiscoverSupermarketsResponse(
                 "success",
-                "Phase 0 completed: country detected. Discovery crawl starts in Phase 1.",
-                List.<SupermarketDiscoveryResult>of(),
+                "Phase 1 completed: supermarket candidates discovered.",
+                data,
                 new DiscoverSupermarketsMeta(
                         request.city(),
                         countryResolution.countryCode(),
                         countryResolution.confidence(),
-                        "phase0"
+                        "phase1"
                 )
         );
     }
 
-    private DiscoverSupermarketsResponse fallback(String city, CountryResolutionResult countryResolution, String message) {
+    private DiscoverSupermarketsResponse fallback(
+            String city,
+            CountryResolutionResult countryResolution,
+            String message,
+            String phase
+    ) {
         return new DiscoverSupermarketsResponse(
                 "fallback",
                 message,
                 List.of(),
-                new DiscoverSupermarketsMeta(city, null, countryResolution.confidence(), "phase0")
+                new DiscoverSupermarketsMeta(city, countryResolution.countryCode(), countryResolution.confidence(), phase)
         );
     }
 }
