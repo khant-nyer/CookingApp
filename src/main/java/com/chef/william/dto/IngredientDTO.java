@@ -40,8 +40,4 @@ public class IngredientDTO {
 
     private List<NutritionDTO> nutritionList = new ArrayList<>();
 
-
-    // Cached location-aware store matches for this ingredient.
-    // This list is response-oriented and usually refreshed by an external provider.
-    private List<IngredientStoreListingDTO> nearbyStoreListings = new ArrayList<>();
 }

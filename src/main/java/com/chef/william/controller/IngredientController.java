@@ -1,7 +1,6 @@
 package com.chef.william.controller;
 
 import com.chef.william.dto.IngredientDTO;
-import com.chef.william.dto.IngredientStoreListingDTO;
 import com.chef.william.service.IngredientService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -52,13 +51,6 @@ public class IngredientController {
     public ResponseEntity<IngredientDTO> getIngredientById(@PathVariable Long id) {
         IngredientDTO dto = ingredientService.getIngredientById(id);
         return ResponseEntity.ok(dto);
-    }
-
-
-    @GetMapping("/{id:\\d+}/store-locations")
-    public ResponseEntity<List<IngredientStoreListingDTO>> getIngredientStoreLocations(@PathVariable Long id) {
-        List<IngredientStoreListingDTO> locations = ingredientService.getIngredientStoreLocations(id);
-        return ResponseEntity.ok(locations);
     }
 
     // READ: GET /api/ingredients (all)
