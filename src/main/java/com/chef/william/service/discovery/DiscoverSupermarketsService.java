@@ -15,6 +15,7 @@ public class DiscoverSupermarketsService {
 
     private final CountryDetectionService countryDetectionService;
     private final SupermarketDiscoveryCrawler supermarketDiscoveryCrawler;
+    private final SupermarketInspectionService supermarketInspectionService;
 
     public DiscoverSupermarketsResponse discoverSupermarkets(DiscoverSupermarketsRequest request) {
         CountryResolutionResult countryResolution = countryDetectionService.detectCountryCode(request.city());
@@ -40,25 +41,39 @@ public class DiscoverSupermarketsService {
             );
         }
 
-        List<SupermarketDiscoveryResult> data = discoveredMarkets.stream()
-                .map(market -> new SupermarketDiscoveryResult(
-                        market.name(),
-                        market.homepage(),
-                        null,
-                        false,
-                        market.confidence()
+        List<SupermarketInspectionResult> inspectionResults = discoveredMarkets.stream()
+                .map(market -> supermarketInspectionService.inspect(market, request.ingredient()))
+                .toList();
+
+        boolean hasInspectedMarket = inspectionResults.stream().anyMatch(SupermarketInspectionResult::inspected);
+        if (!hasInspectedMarket) {
+            return fallback(
+                    request.city(),
+                    countryResolution,
+                    "We couldn’t inspect supermarket results right now. Please try again later.",
+                    "phase2"
+            );
+        }
+
+        List<SupermarketDiscoveryResult> data = inspectionResults.stream()
+                .map(result -> new SupermarketDiscoveryResult(
+                        result.supermarketName(),
+                        result.homepage(),
+                        result.ingredientSearchUrl(),
+                        result.available(),
+                        result.confidence()
                 ))
                 .toList();
 
         return new DiscoverSupermarketsResponse(
                 "success",
-                "Phase 1 completed: supermarket candidates discovered.",
+                "Phase 2 completed: supermarket ingredient inspection finished.",
                 data,
                 new DiscoverSupermarketsMeta(
                         request.city(),
                         countryResolution.countryCode(),
                         countryResolution.confidence(),
-                        "phase1"
+                        "phase2"
                 )
         );
     }
