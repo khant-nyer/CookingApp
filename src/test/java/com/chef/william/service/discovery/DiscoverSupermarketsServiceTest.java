@@ -10,21 +10,42 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class DiscoverSupermarketsServiceTest {
 
-    @Test
-    void shouldReturnSuccessWhenInspectionCompleted() {
-        SupermarketDiscoveryCrawler crawler = (city, countryCode) -> List.of(
-                new DiscoveredSupermarket("Fresh Mart", "https://freshmart.example", "duckduckgo_html", "LOW")
-        );
-        SupermarketInspectionService inspector = (market, ingredient) -> new SupermarketInspectionResult(
-                market.name(),
-                market.homepage(),
-                market.homepage() + "/search?q=" + ingredient,
-                true,
-                "MEDIUM",
-                true
-        );
+    private final SupermarketMatchingService matchingService = new DefaultSupermarketMatchingService();
 
-        DiscoverSupermarketsService service = new DiscoverSupermarketsService(new CountryDetectionService(), crawler, inspector);
+    @Test
+    void shouldReturnSuccessWhenInspectionCompletedAndMatchingFound() {
+        SupermarketDiscoveryCrawler crawler = (city, countryCode) -> List.of(
+                new DiscoveredSupermarket("Fresh Mart", "https://freshmart.example", "duckduckgo_html", "LOW"),
+                new DiscoveredSupermarket("No Match Store", "https://nomatch.example", "duckduckgo_html", "LOW")
+        );
+        SupermarketInspectionService inspector = (market, ingredient) -> {
+            if (market.name().contains("Fresh")) {
+                return new SupermarketInspectionResult(
+                        market.name(),
+                        market.homepage(),
+                        market.homepage() + "/search?q=" + ingredient,
+                        true,
+                        "MEDIUM",
+                        true
+                );
+            }
+
+            return new SupermarketInspectionResult(
+                    market.name(),
+                    market.homepage(),
+                    market.homepage() + "/search?q=" + ingredient,
+                    false,
+                    "LOW",
+                    true
+            );
+        };
+
+        DiscoverSupermarketsService service = new DiscoverSupermarketsService(
+                new CountryDetectionService(),
+                crawler,
+                inspector,
+                matchingService
+        );
 
         DiscoverSupermarketsResponse response = service.discoverSupermarkets(
                 new DiscoverSupermarketsRequest("milk", "Jakarta")
@@ -32,10 +53,10 @@ class DiscoverSupermarketsServiceTest {
 
         assertThat(response.status()).isEqualTo("success");
         assertThat(response.meta().resolvedCountryCode()).isEqualTo("ID");
-        assertThat(response.meta().phase()).isEqualTo("phase2");
+        assertThat(response.meta().phase()).isEqualTo("phase3");
         assertThat(response.data()).hasSize(1);
+        assertThat(response.data().getFirst().name()).isEqualTo("Fresh Mart");
         assertThat(response.data().getFirst().available()).isTrue();
-        assertThat(response.data().getFirst().ingredientSearchUrl()).contains("search?q=milk");
     }
 
     @Test
@@ -43,7 +64,8 @@ class DiscoverSupermarketsServiceTest {
         DiscoverSupermarketsService service = new DiscoverSupermarketsService(
                 new CountryDetectionService(),
                 (city, countryCode) -> List.of(),
-                (market, ingredient) -> new SupermarketInspectionResult("", "", "", false, "LOW", false)
+                (market, ingredient) -> new SupermarketInspectionResult("", "", "", false, "LOW", false),
+                matchingService
         );
 
         DiscoverSupermarketsResponse response = service.discoverSupermarkets(
@@ -61,7 +83,8 @@ class DiscoverSupermarketsServiceTest {
         DiscoverSupermarketsService service = new DiscoverSupermarketsService(
                 new CountryDetectionService(),
                 (city, countryCode) -> List.of(),
-                (market, ingredient) -> new SupermarketInspectionResult("", "", "", false, "LOW", false)
+                (market, ingredient) -> new SupermarketInspectionResult("", "", "", false, "LOW", false),
+                matchingService
         );
 
         DiscoverSupermarketsResponse response = service.discoverSupermarkets(
@@ -81,7 +104,8 @@ class DiscoverSupermarketsServiceTest {
                 (city, countryCode) -> List.of(new DiscoveredSupermarket("Fresh Mart", "https://freshmart.example", "duckduckgo_html", "LOW")),
                 (market, ingredient) -> new SupermarketInspectionResult(
                         market.name(), market.homepage(), market.homepage(), false, "LOW", false
-                )
+                ),
+                matchingService
         );
 
         DiscoverSupermarketsResponse response = service.discoverSupermarkets(
@@ -91,5 +115,25 @@ class DiscoverSupermarketsServiceTest {
         assertThat(response.status()).isEqualTo("fallback");
         assertThat(response.meta().phase()).isEqualTo("phase2");
         assertThat(response.message()).contains("couldn’t inspect supermarket results");
+    }
+
+    @Test
+    void shouldReturnFallbackWhenNoStrongMatchAfterInspection() {
+        DiscoverSupermarketsService service = new DiscoverSupermarketsService(
+                new CountryDetectionService(),
+                (city, countryCode) -> List.of(new DiscoveredSupermarket("Fresh Mart", "https://freshmart.example", "duckduckgo_html", "LOW")),
+                (market, ingredient) -> new SupermarketInspectionResult(
+                        market.name(), market.homepage(), market.homepage() + "/search?q=" + ingredient, false, "LOW", true
+                ),
+                matchingService
+        );
+
+        DiscoverSupermarketsResponse response = service.discoverSupermarkets(
+                new DiscoverSupermarketsRequest("milk", "Jakarta")
+        );
+
+        assertThat(response.status()).isEqualTo("fallback");
+        assertThat(response.meta().phase()).isEqualTo("phase3");
+        assertThat(response.message()).contains("No supermarkets currently show strong matches");
     }
 }

@@ -16,6 +16,7 @@ public class DiscoverSupermarketsService {
     private final CountryDetectionService countryDetectionService;
     private final SupermarketDiscoveryCrawler supermarketDiscoveryCrawler;
     private final SupermarketInspectionService supermarketInspectionService;
+    private final SupermarketMatchingService supermarketMatchingService;
 
     public DiscoverSupermarketsResponse discoverSupermarkets(DiscoverSupermarketsRequest request) {
         CountryResolutionResult countryResolution = countryDetectionService.detectCountryCode(request.city());
@@ -55,25 +56,27 @@ public class DiscoverSupermarketsService {
             );
         }
 
-        List<SupermarketDiscoveryResult> data = inspectionResults.stream()
-                .map(result -> new SupermarketDiscoveryResult(
-                        result.supermarketName(),
-                        result.homepage(),
-                        result.ingredientSearchUrl(),
-                        result.available(),
-                        result.confidence()
-                ))
-                .toList();
+        List<SupermarketDiscoveryResult> matchedMarkets = supermarketMatchingService
+                .matchAndRank(request.ingredient(), inspectionResults);
+
+        if (matchedMarkets.isEmpty()) {
+            return fallback(
+                    request.city(),
+                    countryResolution,
+                    "No supermarkets currently show strong matches for this ingredient in your area.",
+                    "phase3"
+            );
+        }
 
         return new DiscoverSupermarketsResponse(
                 "success",
-                "Phase 2 completed: supermarket ingredient inspection finished.",
-                data,
+                "Phase 3 completed: supermarkets matched and ranked.",
+                matchedMarkets,
                 new DiscoverSupermarketsMeta(
                         request.city(),
                         countryResolution.countryCode(),
                         countryResolution.confidence(),
-                        "phase2"
+                        "phase3"
                 )
         );
     }
