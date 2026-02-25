@@ -55,7 +55,6 @@ class FoodServiceTest {
         food.setRecipes(new ArrayList<>());
 
         when(foodRepository.findById(1L)).thenReturn(Optional.of(food));
-        when(recipeRepository.countByFoodId(1L)).thenReturn(0);
 
         FoodRecipeStatusDTO status = foodService.getFoodRecipeStatus(1L);
 
