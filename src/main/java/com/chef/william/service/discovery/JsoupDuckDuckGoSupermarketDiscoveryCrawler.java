@@ -1,5 +1,6 @@
 package com.chef.william.service.discovery;
 
+import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -16,6 +17,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
+@Slf4j
 @Component
 public class JsoupDuckDuckGoSupermarketDiscoveryCrawler implements SupermarketDiscoveryCrawler {
 
@@ -50,11 +52,13 @@ public class JsoupDuckDuckGoSupermarketDiscoveryCrawler implements SupermarketDi
                 }
                 byHost.put(host, market);
                 if (byHost.size() >= 8) {
+                    log.info("Discovery hit result cap for city='{}' country='{}'", city, countryCode);
                     return new ArrayList<>(byHost.values());
                 }
             }
         }
 
+        log.info("Discovery completed city='{}' country='{}' candidates={}", city, countryCode, byHost.size());
         return new ArrayList<>(byHost.values());
     }
 
@@ -78,7 +82,8 @@ public class JsoupDuckDuckGoSupermarketDiscoveryCrawler implements SupermarketDi
                 String name = deriveName(link.text(), href);
                 results.add(new DiscoveredSupermarket(name, href, "duckduckgo_html", "LOW"));
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            log.warn("Discovery crawl failed url='{}' error='{}'", searchUrl, e.getMessage());
             return List.of();
         }
 

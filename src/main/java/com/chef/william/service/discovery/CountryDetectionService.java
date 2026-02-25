@@ -1,11 +1,14 @@
 package com.chef.william.service.discovery;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
+@Slf4j
 @Service
 public class CountryDetectionService {
 
@@ -31,13 +34,31 @@ public class CountryDetectionService {
             Map.entry("sydney", "AU")
     );
 
+    private final Map<String, CountryResolutionResult> resolutionCache = new ConcurrentHashMap<>();
+
     public CountryResolutionResult detectCountryCode(String rawCity) {
         if (rawCity == null || rawCity.isBlank()) {
             return new CountryResolutionResult(null, "NONE", false, "empty_city");
         }
 
         String city = rawCity.trim().toLowerCase(Locale.ROOT);
+        CountryResolutionResult cached = resolutionCache.get(city);
+        if (cached != null) {
+            return cached;
+        }
 
+        CountryResolutionResult resolved = detectInternal(city);
+        resolutionCache.put(city, resolved);
+        log.debug("Country detection city='{}' resolved={} country={} reason={} confidence={}",
+                city,
+                resolved.resolved(),
+                resolved.countryCode(),
+                resolved.reason(),
+                resolved.confidence());
+        return resolved;
+    }
+
+    private CountryResolutionResult detectInternal(String city) {
         String fromComma = resolveFromCommaSeparatedCity(city);
         if (fromComma != null) {
             return new CountryResolutionResult(fromComma, "HIGH", true, "city_country_input");

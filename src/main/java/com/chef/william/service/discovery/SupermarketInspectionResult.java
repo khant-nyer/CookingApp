@@ -6,6 +6,8 @@ public record SupermarketInspectionResult(
         String ingredientSearchUrl,
         boolean available,
         String confidence,
-        boolean inspected
+        boolean inspected,
+        int evidenceScore,
+        int ingredientMentions
 ) {
 }

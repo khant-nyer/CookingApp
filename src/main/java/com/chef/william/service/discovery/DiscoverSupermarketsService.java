@@ -5,10 +5,12 @@ import com.chef.william.dto.discovery.DiscoverSupermarketsRequest;
 import com.chef.william.dto.discovery.DiscoverSupermarketsResponse;
 import com.chef.william.dto.discovery.SupermarketDiscoveryResult;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class DiscoverSupermarketsService {
@@ -22,6 +24,7 @@ public class DiscoverSupermarketsService {
         CountryResolutionResult countryResolution = countryDetectionService.detectCountryCode(request.city());
 
         if (!countryResolution.resolved()) {
+            log.info("Phase0 fallback city='{}' reason='{}'", request.city(), countryResolution.reason());
             return fallback(
                     request.city(),
                     countryResolution,
@@ -34,6 +37,7 @@ public class DiscoverSupermarketsService {
                 .discover(request.city(), countryResolution.countryCode());
 
         if (discoveredMarkets.isEmpty()) {
+            log.info("Phase1 fallback city='{}' country='{}'", request.city(), countryResolution.countryCode());
             return fallback(
                     request.city(),
                     countryResolution,
@@ -48,6 +52,7 @@ public class DiscoverSupermarketsService {
 
         boolean hasInspectedMarket = inspectionResults.stream().anyMatch(SupermarketInspectionResult::inspected);
         if (!hasInspectedMarket) {
+            log.info("Phase2 fallback city='{}' candidates={}", request.city(), discoveredMarkets.size());
             return fallback(
                     request.city(),
                     countryResolution,
@@ -60,6 +65,8 @@ public class DiscoverSupermarketsService {
                 .matchAndRank(request.ingredient(), inspectionResults);
 
         if (matchedMarkets.isEmpty()) {
+            log.info("Phase3 fallback city='{}' ingredient='{}' inspectedCount={}",
+                    request.city(), request.ingredient(), inspectionResults.size());
             return fallback(
                     request.city(),
                     countryResolution,
@@ -68,6 +75,8 @@ public class DiscoverSupermarketsService {
             );
         }
 
+        log.info("Discovery success city='{}' country='{}' matched={}",
+                request.city(), countryResolution.countryCode(), matchedMarkets.size());
         return new DiscoverSupermarketsResponse(
                 "success",
                 "Phase 3 completed: supermarkets matched and ranked.",

@@ -16,9 +16,11 @@ public class DefaultSupermarketMatchingService implements SupermarketMatchingSer
             return List.of();
         }
 
+        String normalizedIngredient = ingredient == null ? "" : ingredient.toLowerCase(Locale.ROOT).trim();
+
         return inspections.stream()
                 .filter(SupermarketInspectionResult::inspected)
-                .filter(SupermarketInspectionResult::available)
+                .filter(result -> isStrongMatch(result, normalizedIngredient))
                 .map(result -> new SupermarketDiscoveryResult(
                         result.supermarketName(),
                         result.homepage(),
@@ -31,6 +33,18 @@ public class DefaultSupermarketMatchingService implements SupermarketMatchingSer
                         .reversed()
                         .thenComparing(result -> safeLower(result.name())))
                 .toList();
+    }
+
+    private boolean isStrongMatch(SupermarketInspectionResult result, String ingredient) {
+        if (!result.available()) {
+            return false;
+        }
+
+        boolean ingredientInUrl = result.ingredientSearchUrl() != null
+                && !ingredient.isBlank()
+                && result.ingredientSearchUrl().toLowerCase(Locale.ROOT).contains(ingredient);
+
+        return result.ingredientMentions() > 0 && result.evidenceScore() >= 2 && (ingredientInUrl || result.evidenceScore() >= 4);
     }
 
     private int confidenceRank(String confidence) {

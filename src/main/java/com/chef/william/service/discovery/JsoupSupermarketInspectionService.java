@@ -1,7 +1,9 @@
 package com.chef.william.service.discovery;
 
+import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
+import org.jsoup.select.Elements;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
@@ -9,6 +11,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 
+@Slf4j
 @Service
 public class JsoupSupermarketInspectionService implements SupermarketInspectionService {
 
@@ -23,31 +26,39 @@ public class JsoupSupermarketInspectionService implements SupermarketInspectionS
 
         try {
             Document homepageDoc = fetch(homepage);
-            boolean homepageContainsIngredient = containsIngredient(homepageDoc.text(), ingredient);
-
             Document searchDoc = fetch(searchUrl);
-            boolean searchContainsIngredient = containsIngredient(searchDoc.text(), ingredient);
 
-            boolean hasSignals = hasProductSignals(searchDoc.text()) || hasProductSignals(homepageDoc.text());
-            boolean available = searchContainsIngredient || (homepageContainsIngredient && hasSignals);
+            int mentionsHomepage = countIngredientMentions(homepageDoc.text(), ingredient);
+            int mentionsSearch = countIngredientMentions(searchDoc.text(), ingredient);
+            int ingredientMentions = mentionsHomepage + mentionsSearch;
 
-            String confidence = available ? "MEDIUM" : "LOW";
+            int productSignalScore = scoreProductSignals(searchDoc) + scoreProductSignals(homepageDoc);
+            boolean available = ingredientMentions > 0 && productSignalScore >= 2;
+
+            String confidence = classifyConfidence(ingredientMentions, productSignalScore, available);
+
             return new SupermarketInspectionResult(
                     supermarket.name(),
                     homepage,
                     searchUrl,
                     available,
                     confidence,
-                    true
+                    true,
+                    productSignalScore,
+                    ingredientMentions
             );
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            log.warn("Inspection failed supermarket='{}' url='{}' error='{}'",
+                    supermarket.name(), homepage, e.getMessage());
             return new SupermarketInspectionResult(
                     supermarket.name(),
                     homepage,
                     searchUrl,
                     false,
                     "LOW",
-                    false
+                    false,
+                    0,
+                    0
             );
         }
     }
@@ -55,7 +66,7 @@ public class JsoupSupermarketInspectionService implements SupermarketInspectionS
     private SupermarketInspectionResult buildFailed(DiscoveredSupermarket supermarket, String confidence) {
         String name = supermarket == null ? "unknown" : supermarket.name();
         String homepage = supermarket == null ? null : supermarket.homepage();
-        return new SupermarketInspectionResult(name, homepage, homepage, false, confidence, false);
+        return new SupermarketInspectionResult(name, homepage, homepage, false, confidence, false, 0, 0);
     }
 
     private Document fetch(String url) throws Exception {
@@ -65,17 +76,42 @@ public class JsoupSupermarketInspectionService implements SupermarketInspectionS
                 .get();
     }
 
-    private boolean containsIngredient(String text, String ingredient) {
+    private int countIngredientMentions(String text, String ingredient) {
         if (text == null || ingredient == null) {
-            return false;
+            return 0;
         }
-        return text.toLowerCase(Locale.ROOT).contains(ingredient.toLowerCase(Locale.ROOT));
+
+        String lowerText = text.toLowerCase(Locale.ROOT);
+        String token = ingredient.toLowerCase(Locale.ROOT);
+        int count = 0;
+        int idx = 0;
+        while ((idx = lowerText.indexOf(token, idx)) >= 0) {
+            count++;
+            idx += token.length();
+        }
+        return count;
     }
 
-    private boolean hasProductSignals(String text) {
-        String lower = text == null ? "" : text.toLowerCase(Locale.ROOT);
-        return lower.contains("price") || lower.contains("add to cart") || lower.contains("in stock") ||
-                lower.contains("product") || lower.contains("buy now");
+    private int scoreProductSignals(Document doc) {
+        int score = 0;
+        score += countAtMost(doc.select("[class*=product], [class*=item], [class*=card], [data-testid*=product]"), 3);
+        score += countAtMost(doc.select(".price, [class*=price], [data-price]"), 2);
+        score += countAtMost(doc.select(":containsOwn(add to cart), :containsOwn(in stock), :containsOwn(buy now)"), 2);
+        return score;
+    }
+
+    private int countAtMost(Elements elements, int cap) {
+        return Math.min(elements.size(), cap);
+    }
+
+    private String classifyConfidence(int mentions, int productScore, boolean available) {
+        if (!available) {
+            return "LOW";
+        }
+        if (mentions >= 3 && productScore >= 4) {
+            return "HIGH";
+        }
+        return "MEDIUM";
     }
 
     private String buildSearchUrl(String homepage, String ingredient) {

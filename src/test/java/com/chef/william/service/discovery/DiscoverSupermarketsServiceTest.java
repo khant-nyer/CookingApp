@@ -26,7 +26,9 @@ class DiscoverSupermarketsServiceTest {
                         market.homepage() + "/search?q=" + ingredient,
                         true,
                         "MEDIUM",
-                        true
+                        true,
+                        3,
+                        1
                 );
             }
 
@@ -36,7 +38,9 @@ class DiscoverSupermarketsServiceTest {
                     market.homepage() + "/search?q=" + ingredient,
                     false,
                     "LOW",
-                    true
+                    true,
+                    1,
+                    0
             );
         };
 
@@ -64,7 +68,7 @@ class DiscoverSupermarketsServiceTest {
         DiscoverSupermarketsService service = new DiscoverSupermarketsService(
                 new CountryDetectionService(),
                 (city, countryCode) -> List.of(),
-                (market, ingredient) -> new SupermarketInspectionResult("", "", "", false, "LOW", false),
+                (market, ingredient) -> new SupermarketInspectionResult("", "", "", false, "LOW", false, 0, 0),
                 matchingService
         );
 
@@ -83,7 +87,7 @@ class DiscoverSupermarketsServiceTest {
         DiscoverSupermarketsService service = new DiscoverSupermarketsService(
                 new CountryDetectionService(),
                 (city, countryCode) -> List.of(),
-                (market, ingredient) -> new SupermarketInspectionResult("", "", "", false, "LOW", false),
+                (market, ingredient) -> new SupermarketInspectionResult("", "", "", false, "LOW", false, 0, 0),
                 matchingService
         );
 
@@ -103,7 +107,7 @@ class DiscoverSupermarketsServiceTest {
                 new CountryDetectionService(),
                 (city, countryCode) -> List.of(new DiscoveredSupermarket("Fresh Mart", "https://freshmart.example", "duckduckgo_html", "LOW")),
                 (market, ingredient) -> new SupermarketInspectionResult(
-                        market.name(), market.homepage(), market.homepage(), false, "LOW", false
+                        market.name(), market.homepage(), market.homepage(), false, "LOW", false, 0, 0
                 ),
                 matchingService
         );
@@ -123,7 +127,7 @@ class DiscoverSupermarketsServiceTest {
                 new CountryDetectionService(),
                 (city, countryCode) -> List.of(new DiscoveredSupermarket("Fresh Mart", "https://freshmart.example", "duckduckgo_html", "LOW")),
                 (market, ingredient) -> new SupermarketInspectionResult(
-                        market.name(), market.homepage(), market.homepage() + "/search?q=" + ingredient, false, "LOW", true
+                        market.name(), market.homepage(), market.homepage() + "/search?q=" + ingredient, false, "LOW", true, 1, 0
                 ),
                 matchingService
         );
