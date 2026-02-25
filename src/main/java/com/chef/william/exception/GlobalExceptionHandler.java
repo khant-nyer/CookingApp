@@ -107,7 +107,7 @@ public class GlobalExceptionHandler {
         String message = "Missing required request parameter: " + ex.getParameterName();
 
         if ("city".equals(ex.getParameterName())) {
-            message = "City is required for supermarket discovery. Migration note: userId is deprecated; send city + ingredientName only.";
+            message = "Missing required request parameter: city";
         }
 
         ErrorResponse error = new ErrorResponse(
