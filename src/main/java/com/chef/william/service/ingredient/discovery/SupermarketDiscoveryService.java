@@ -12,7 +12,7 @@ import java.util.List;
 public class SupermarketDiscoveryService {
 
     private final OpenStreetMapSupermarketDiscoveryClient openStreetMapClient;
-    private final PlaywrightSupermarketDiscoveryClient playwrightClient;
+    private final SearchEngineSupermarketDiscoveryClient searchEngineClient;
 
     public SupermarketDiscoveryResponseDTO discover(String ingredientName, String city) {
         OpenStreetMapSupermarketDiscoveryClient.CityContext cityContext = openStreetMapClient.resolveCity(city)
@@ -24,7 +24,7 @@ public class SupermarketDiscoveryService {
 
         boolean fallbackUsed = false;
         if (supermarkets.isEmpty()) {
-            supermarkets = playwrightClient.discoverBySearch(city, cityContext.countryName());
+            supermarkets = searchEngineClient.discoverBySearch(city, cityContext.countryName());
             fallbackUsed = true;
         }
 
