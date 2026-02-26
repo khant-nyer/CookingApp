@@ -40,11 +40,15 @@ public class OpenStreetMapSupermarketDiscoveryClient {
     @Value("${app.discovery.user-agent:CookingApp/1.0 (supermarket-discovery-service)}")
     private String userAgent;
 
+    @Value("${app.discovery.search-radius-meters:12000}")
+    private int searchRadiusMeters;
+
     public Optional<CityContext> resolveCity(String city) {
         String url = UriComponentsBuilder.fromHttpUrl(NOMINATIM_URL)
                 .queryParam("city", city)
                 .queryParam("format", "json")
                 .queryParam("addressdetails", 1)
+                .queryParam("accept-language", "en")
                 .queryParam("limit", 1)
                 .encode(StandardCharsets.UTF_8)
                 .toUriString();
@@ -55,6 +59,7 @@ public class OpenStreetMapSupermarketDiscoveryClient {
                     .queryParam("q", city)
                     .queryParam("format", "json")
                     .queryParam("addressdetails", 1)
+                    .queryParam("accept-language", "en")
                     .queryParam("limit", 1)
                     .encode(StandardCharsets.UTF_8)
                     .toUriString();
@@ -71,12 +76,42 @@ public class OpenStreetMapSupermarketDiscoveryClient {
         return Optional.of(new CityContext(
                 city,
                 address.path("country").asText(null),
-                address.path("country_code").asText(null)
+                address.path("country_code").asText(null),
+                first.path("lat").asText(null),
+                first.path("lon").asText(null)
         ));
     }
 
-    public List<SupermarketDTO> discoverSupermarkets(String city, String countryName) {
-        String query = """
+    public List<SupermarketDTO> discoverSupermarkets(String city, String countryName, CityContext cityContext) {
+        String query = buildOverpassQuery(city, cityContext);
+
+        JsonNode root = executeOverpassQuery(query);
+        if (root == null || !root.has("elements")) {
+            return List.of();
+        }
+
+        return mapSupermarkets(root, city, countryName);
+    }
+
+    private String buildOverpassQuery(String city, CityContext cityContext) {
+        if (cityContext != null && isNumeric(cityContext.latitude()) && isNumeric(cityContext.longitude())) {
+            return """
+                    [out:json][timeout:25];
+                    (
+                      node["shop"="supermarket"](around:%d,%s,%s);
+                      way["shop"="supermarket"](around:%d,%s,%s);
+                      relation["shop"="supermarket"](around:%d,%s,%s);
+                    );
+                    out tags center %d;
+                    """.formatted(
+                    searchRadiusMeters, cityContext.latitude(), cityContext.longitude(),
+                    searchRadiusMeters, cityContext.latitude(), cityContext.longitude(),
+                    searchRadiusMeters, cityContext.latitude(), cityContext.longitude(),
+                    maxSupermarkets * 3
+            );
+        }
+
+        return """
                 [out:json][timeout:25];
                 area[\"name\"=\"%s\"][\"boundary\"=\"administrative\"]->.searchArea;
                 (
@@ -86,12 +121,9 @@ public class OpenStreetMapSupermarketDiscoveryClient {
                 );
                 out tags center %d;
                 """.formatted(escapeOverpassValue(city), maxSupermarkets * 3);
+    }
 
-        JsonNode root = executeOverpassQuery(query);
-        if (root == null || !root.has("elements")) {
-            return List.of();
-        }
-
+    private List<SupermarketDTO> mapSupermarkets(JsonNode root, String city, String countryName) {
         Map<String, SupermarketDTO> unique = new LinkedHashMap<>();
         for (JsonNode element : root.path("elements")) {
             JsonNode tags = element.path("tags");
@@ -129,6 +161,18 @@ public class OpenStreetMapSupermarketDiscoveryClient {
             }
         }
         return new ArrayList<>(unique.values());
+    }
+
+    private boolean isNumeric(String value) {
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+        try {
+            Double.parseDouble(value);
+            return true;
+        } catch (NumberFormatException ex) {
+            return false;
+        }
     }
 
     private String compactAddress(JsonNode tags) {
@@ -196,6 +240,6 @@ public class OpenStreetMapSupermarketDiscoveryClient {
         return value.replace("\"", "\\\"");
     }
 
-    public record CityContext(String city, String countryName, String countryCode) {
+    public record CityContext(String city, String countryName, String countryCode, String latitude, String longitude) {
     }
 }

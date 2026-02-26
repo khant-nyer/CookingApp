@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -32,8 +33,8 @@ class SupermarketDiscoveryServiceTest {
     @Test
     void shouldUseApiResultsBeforeFallback() {
         when(openStreetMapClient.resolveCity("Bangkok"))
-                .thenReturn(Optional.of(new OpenStreetMapSupermarketDiscoveryClient.CityContext("Bangkok", "Thailand", "th")));
-        when(openStreetMapClient.discoverSupermarkets("Bangkok", "Thailand"))
+                .thenReturn(Optional.of(new OpenStreetMapSupermarketDiscoveryClient.CityContext("Bangkok", "Thailand", "th", "13.7563", "100.5018")));
+        when(openStreetMapClient.discoverSupermarkets("Bangkok", "Thailand", any()))
                 .thenReturn(List.of(SupermarketDTO.builder().name("Big C").source("OPENSTREETMAP").build()));
 
         SupermarketDiscoveryResponseDTO response = supermarketDiscoveryService.discover("tomato", "Bangkok");
@@ -46,8 +47,8 @@ class SupermarketDiscoveryServiceTest {
     @Test
     void shouldUsePlaywrightFallbackWhenApiReturnsNone() {
         when(openStreetMapClient.resolveCity("Bangkok"))
-                .thenReturn(Optional.of(new OpenStreetMapSupermarketDiscoveryClient.CityContext("Bangkok", "Thailand", "th")));
-        when(openStreetMapClient.discoverSupermarkets("Bangkok", "Thailand"))
+                .thenReturn(Optional.of(new OpenStreetMapSupermarketDiscoveryClient.CityContext("Bangkok", "Thailand", "th", "13.7563", "100.5018")));
+        when(openStreetMapClient.discoverSupermarkets("Bangkok", "Thailand", any()))
                 .thenReturn(List.of());
         when(playwrightClient.discoverBySearch("Bangkok", "Thailand"))
                 .thenReturn(List.of(SupermarketDTO.builder().name("Lotus's").source("PLAYWRIGHT_FALLBACK").build()));

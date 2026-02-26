@@ -16,11 +16,12 @@ public class SupermarketDiscoveryService {
 
     public SupermarketDiscoveryResponseDTO discover(String ingredientName, String city) {
         OpenStreetMapSupermarketDiscoveryClient.CityContext cityContext = openStreetMapClient.resolveCity(city)
-                .orElse(new OpenStreetMapSupermarketDiscoveryClient.CityContext(city, null, null));
+                .orElse(new OpenStreetMapSupermarketDiscoveryClient.CityContext(city, null, null, null, null));
 
         List<SupermarketDTO> supermarkets = openStreetMapClient.discoverSupermarkets(
                 city,
-                cityContext.countryName());
+                cityContext.countryName(),
+                cityContext);
 
         boolean fallbackUsed = false;
         if (supermarkets.isEmpty()) {
