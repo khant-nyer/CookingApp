@@ -78,7 +78,15 @@ class IngredientControllerTest {
                 .country("Thailand")
                 .fallbackUsed(false)
                 .supermarkets(List.of(
-                        SupermarketDTO.builder().name("Big C").city("Bangkok").country("Thailand").source("OPENSTREETMAP").build()
+                        SupermarketDTO.builder()
+                                .name("Big C")
+                                .officialOnlineWebpage("https://www.bigc.co.th")
+                                .matchedIngredientPriceRange("25.00-45.00")
+                                .address("Rajdamri Road, Bangkok")
+                                .city("Bangkok")
+                                .country("Thailand")
+                                .source("OPENSTREETMAP")
+                                .build()
                 ))
                 .build();
 
@@ -92,7 +100,10 @@ class IngredientControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.city").value("Bangkok"))
                 .andExpect(jsonPath("$.country").value("Thailand"))
-                .andExpect(jsonPath("$.supermarkets[0].name").value("Big C"));
+                .andExpect(jsonPath("$.supermarkets[0].name").value("Big C"))
+                .andExpect(jsonPath("$.supermarkets[0].officialOnlineWebpage").value("https://www.bigc.co.th"))
+                .andExpect(jsonPath("$.supermarkets[0].matchedIngredientPriceRange").value("25.00-45.00"))
+                .andExpect(jsonPath("$.supermarkets[0].address").value("Rajdamri Road, Bangkok"));
     }
 
 }

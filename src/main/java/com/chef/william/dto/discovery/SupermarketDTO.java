@@ -7,6 +7,8 @@ import lombok.Value;
 @Builder
 public class SupermarketDTO {
     String name;
+    String officialOnlineWebpage;
+    String matchedIngredientPriceRange;
     String city;
     String country;
     String address;

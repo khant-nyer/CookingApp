@@ -66,19 +66,28 @@ class SupermarketDiscoveryServiceTest {
 
     @Test
     void shouldReturnIngredientFilteredSupermarketsWhenSignalsFound() {
-        SupermarketDTO bigC = SupermarketDTO.builder().name("Big C").source("OPENSTREETMAP").build();
+        SupermarketDTO bigC = SupermarketDTO.builder().name("Big C").address("Bangkok").source("OPENSTREETMAP").build();
         SupermarketDTO tops = SupermarketDTO.builder().name("Tops").source("OPENSTREETMAP").build();
+        SupermarketDTO filteredBigC = SupermarketDTO.builder()
+                .name("Big C")
+                .officialOnlineWebpage("https://www.bigc.co.th")
+                .matchedIngredientPriceRange("25.00-45.00")
+                .address("Bangkok")
+                .source("OPENSTREETMAP")
+                .build();
 
         when(openStreetMapClient.resolveCity("Bangkok"))
                 .thenReturn(Optional.of(new OpenStreetMapSupermarketDiscoveryClient.CityContext("Bangkok", "Thailand", "th", "13.7563", "100.5018")));
         when(openStreetMapClient.discoverSupermarkets("Bangkok", "Thailand", any()))
                 .thenReturn(List.of(bigC, tops));
         when(playwrightClient.filterSupermarketsByIngredient(any(), any(), any()))
-                .thenReturn(List.of(bigC));
+                .thenReturn(List.of(filteredBigC));
 
         SupermarketDiscoveryResponseDTO response = supermarketDiscoveryService.discover("tomato", "Bangkok");
 
         assertThat(response.getSupermarkets()).hasSize(1);
         assertThat(response.getSupermarkets().getFirst().getName()).isEqualTo("Big C");
+        assertThat(response.getSupermarkets().getFirst().getOfficialOnlineWebpage()).isEqualTo("https://www.bigc.co.th");
+        assertThat(response.getSupermarkets().getFirst().getMatchedIngredientPriceRange()).isEqualTo("25.00-45.00");
     }
 }

@@ -17,6 +17,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Component
@@ -58,6 +60,8 @@ public class PlaywrightSupermarketDiscoveryClient {
 
                 unique.put(key, SupermarketDTO.builder()
                         .name(normalized)
+                        .officialOnlineWebpage(null)
+                        .matchedIngredientPriceRange(null)
                         .city(city)
                         .country(country)
                         .source("PLAYWRIGHT_FALLBACK")
@@ -93,8 +97,19 @@ public class PlaywrightSupermarketDiscoveryClient {
                 }
                 checks++;
 
-                if (hasIngredientSignal(browser, supermarket.getName(), ingredientName, city)) {
-                    matched.add(supermarket);
+                IngredientSignal signal = inspectIngredientSignal(browser, supermarket.getName(), ingredientName, city);
+                if (signal.matched()) {
+                    matched.add(SupermarketDTO.builder()
+                            .name(supermarket.getName())
+                            .officialOnlineWebpage(signal.officialWebpage() != null ? signal.officialWebpage() : supermarket.getOfficialOnlineWebpage())
+                            .matchedIngredientPriceRange(signal.priceRange())
+                            .city(supermarket.getCity())
+                            .country(supermarket.getCountry())
+                            .address(supermarket.getAddress())
+                            .latitude(supermarket.getLatitude())
+                            .longitude(supermarket.getLongitude())
+                            .source(supermarket.getSource())
+                            .build());
                 }
             }
 
@@ -106,7 +121,7 @@ public class PlaywrightSupermarketDiscoveryClient {
         }
     }
 
-    private boolean hasIngredientSignal(Browser browser, String supermarketName, String ingredientName, String city) {
+    private IngredientSignal inspectIngredientSignal(Browser browser, String supermarketName, String ingredientName, String city) {
         String query = supermarketName + " " + city + " " + ingredientName;
         String url = "https://duckduckgo.com/?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8);
 
@@ -133,11 +148,27 @@ public class PlaywrightSupermarketDiscoveryClient {
                       .slice(0, 10)
                     """);
 
-            return snippets.stream().anyMatch(text -> containsTokens(text, normalizedIngredient, normalizedSupermarket))
+            @SuppressWarnings("unchecked")
+            List<String> links = (List<String>) page.evaluate("""
+                    () => Array.from(document.querySelectorAll('[data-testid="result-title-a"], h2 a'))
+                      .map(n => n.href || '')
+                      .filter(Boolean)
+                      .slice(0, 5)
+                    """);
+
+            boolean matched = snippets.stream().anyMatch(text -> containsTokens(text, normalizedIngredient, normalizedSupermarket))
                     || titles.stream().anyMatch(text -> containsTokens(text, normalizedIngredient, normalizedSupermarket));
+            if (!matched) {
+                return IngredientSignal.notMatched();
+            }
+
+            String priceRange = extractPriceRange(snippets, titles);
+            String website = links.isEmpty() ? null : links.getFirst();
+
+            return new IngredientSignal(true, website, priceRange);
         } catch (Exception ex) {
             log.debug("Ingredient signal check failed for supermarket {} and ingredient {}: {}", supermarketName, ingredientName, ex.getMessage());
-            return false;
+            return IngredientSignal.notMatched();
         } finally {
             page.close();
         }
@@ -149,5 +180,44 @@ public class PlaywrightSupermarketDiscoveryClient {
         }
         String normalized = text.toLowerCase(Locale.ROOT);
         return normalized.contains(ingredient) && normalized.contains(supermarket);
+    }
+
+    private String extractPriceRange(List<String> snippets, List<String> titles) {
+        List<String> corpus = new ArrayList<>();
+        corpus.addAll(snippets);
+        corpus.addAll(titles);
+
+        Pattern pricePattern = Pattern.compile("(?i)(?:฿|thb|php|₱|\$|usd|eur|€|£)?\\s*(\\d{1,4}(?:[.,]\\d{1,2})?)");
+        Double min = null;
+        Double max = null;
+
+        for (String text : corpus) {
+            Matcher matcher = pricePattern.matcher(text);
+            while (matcher.find()) {
+                try {
+                    double value = Double.parseDouble(matcher.group(1).replace(',', '.'));
+                    if (value <= 0 || value > 10000) {
+                        continue;
+                    }
+                    min = (min == null || value < min) ? value : min;
+                    max = (max == null || value > max) ? value : max;
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
+
+        if (min == null || max == null) {
+            return null;
+        }
+        if (Double.compare(min, max) == 0) {
+            return String.format("%.2f", min);
+        }
+        return String.format("%.2f-%.2f", min, max);
+    }
+
+    private record IngredientSignal(boolean matched, String officialWebpage, String priceRange) {
+        private static IngredientSignal notMatched() {
+            return new IngredientSignal(false, null, null);
+        }
     }
 }

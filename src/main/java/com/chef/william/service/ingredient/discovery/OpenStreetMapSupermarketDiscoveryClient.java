@@ -160,6 +160,8 @@ public class OpenStreetMapSupermarketDiscoveryClient {
 
             unique.put(key, SupermarketDTO.builder()
                     .name(name.trim())
+                    .officialOnlineWebpage(resolveWebsite(tags))
+                    .matchedIngredientPriceRange(null)
                     .city(city)
                     .country(countryName)
                     .address(address)
@@ -218,6 +220,17 @@ public class OpenStreetMapSupermarketDiscoveryClient {
                 .filter(value -> value != null && !value.isBlank())
                 .reduce((left, right) -> left + ", " + right)
                 .orElse(null);
+    }
+
+    private String resolveWebsite(JsonNode tags) {
+        String website = textOrNull(tags, "website");
+        if (website == null) {
+            website = textOrNull(tags, "contact:website");
+        }
+        if (website == null) {
+            website = textOrNull(tags, "brand:website");
+        }
+        return website;
     }
 
     private JsonNode readJsonArray(String url) {
