@@ -86,7 +86,7 @@ public class PlaywrightSupermarketDiscoveryClient {
                                                                 String ingredientName,
                                                                 String city) {
         if (supermarkets == null || supermarkets.isEmpty() || ingredientName == null || ingredientName.isBlank()) {
-            return supermarkets == null ? List.of() : supermarkets;
+            return List.of();
         }
 
         try (Playwright playwright = Playwright.create()) {
@@ -100,11 +100,25 @@ public class PlaywrightSupermarketDiscoveryClient {
                 }
                 checks++;
 
-                IngredientSignal signal = inspectIngredientSignal(browser, supermarket.getName(), ingredientName, city);
+                String officialWebsite = supermarket.getOfficialOnlineWebpage();
+                if (officialWebsite == null || officialWebsite.isBlank()) {
+                    officialWebsite = resolveOfficialWebsite(browser, supermarket.getName(), city, supermarket.getCountry());
+                }
+                if (officialWebsite == null || officialWebsite.isBlank()) {
+                    continue;
+                }
+
+                IngredientSignal signal = inspectIngredientSignal(
+                        browser,
+                        supermarket.getName(),
+                        ingredientName,
+                        city,
+                        officialWebsite
+                );
                 if (signal.matched()) {
                     matched.add(SupermarketDTO.builder()
                             .name(supermarket.getName())
-                            .officialOnlineWebpage(signal.officialWebpage() != null ? signal.officialWebpage() : supermarket.getOfficialOnlineWebpage())
+                            .officialOnlineWebpage(officialWebsite)
                             .matchedIngredientPriceRange(signal.priceRange())
                             .city(supermarket.getCity())
                             .country(supermarket.getCountry())
@@ -144,15 +158,9 @@ public class PlaywrightSupermarketDiscoveryClient {
                 String priceRange = supermarket.getMatchedIngredientPriceRange();
                 String address = supermarket.getAddress();
 
-                if (checks < maxMetadataChecks && (website == null || priceRange == null)) {
+                if (checks < maxMetadataChecks && website == null) {
                     checks++;
-                    IngredientSignal signal = inspectIngredientSignal(browser, supermarket.getName(), ingredientName, city);
-                    if (website == null) {
-                        website = signal.officialWebpage();
-                    }
-                    if (priceRange == null) {
-                        priceRange = signal.priceRange();
-                    }
+                    website = resolveOfficialWebsite(browser, supermarket.getName(), city, supermarket.getCountry());
                 }
 
                 enriched.add(SupermarketDTO.builder()
@@ -176,15 +184,29 @@ public class PlaywrightSupermarketDiscoveryClient {
         }
     }
 
-    private IngredientSignal inspectIngredientSignal(Browser browser, String supermarketName, String ingredientName, String city) {
-        String query = supermarketName + " " + city + " " + ingredientName;
+    private IngredientSignal inspectIngredientSignal(Browser browser,
+                                                     String supermarketName,
+                                                     String ingredientName,
+                                                     String city,
+                                                     String officialWebsite) {
+        String domain = extractHost(officialWebsite);
+        String query = (domain == null)
+                ? supermarketName + " " + city + " " + ingredientName
+                : "site:" + domain + " " + ingredientName;
         String url = "https://duckduckgo.com/?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8);
 
         Page page = browser.newPage();
         try {
+            String normalizedIngredient = ingredientName.toLowerCase(Locale.ROOT);
+            String homepageText = readHomepageText(browser, officialWebsite);
+
+            if (homepageText != null && !homepageText.isBlank() && homepageText.toLowerCase(Locale.ROOT).contains(normalizedIngredient)) {
+                String homepagePrice = extractPriceRange(List.of(homepageText), List.of());
+                return new IngredientSignal(true, officialWebsite, homepagePrice);
+            }
+
             page.navigate(url, new Page.NavigateOptions().setWaitUntil(WaitUntilState.DOMCONTENTLOADED));
 
-            String normalizedIngredient = ingredientName.toLowerCase(Locale.ROOT);
             String normalizedSupermarket = supermarketName.toLowerCase(Locale.ROOT);
 
             @SuppressWarnings("unchecked")
@@ -215,14 +237,64 @@ public class PlaywrightSupermarketDiscoveryClient {
                     || titles.stream().anyMatch(text -> containsTokens(text, normalizedIngredient, normalizedSupermarket));
 
             String priceRange = extractPriceRange(snippets, titles);
-            String website = links.isEmpty() ? null : links.getFirst();
-
-            return new IngredientSignal(matched, website, priceRange);
+            return new IngredientSignal(matched, officialWebsite, priceRange);
         } catch (Exception ex) {
             log.debug("Ingredient signal check failed for supermarket {} and ingredient {}: {}", supermarketName, ingredientName, ex.getMessage());
             return IngredientSignal.notMatched();
         } finally {
             page.close();
+        }
+    }
+
+    private String resolveOfficialWebsite(Browser browser, String supermarketName, String city, String country) {
+        String query = supermarketName + " official site " + city + " " + (country == null ? "" : country);
+        String url = "https://duckduckgo.com/?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8);
+        Page page = browser.newPage();
+        try {
+            page.navigate(url, new Page.NavigateOptions().setWaitUntil(WaitUntilState.DOMCONTENTLOADED));
+            @SuppressWarnings("unchecked")
+            List<String> links = (List<String>) page.evaluate("""
+                    () => Array.from(document.querySelectorAll('[data-testid="result-title-a"], h2 a'))
+                      .map(n => n.href || '')
+                      .filter(Boolean)
+                      .filter(href => !href.includes('duckduckgo.com'))
+                      .slice(0, 5)
+                    """);
+            return links.isEmpty() ? null : links.getFirst();
+        } catch (Exception e) {
+            log.debug("Could not resolve official website for {}: {}", supermarketName, e.getMessage());
+            return null;
+        } finally {
+            page.close();
+        }
+    }
+
+    private String readHomepageText(Browser browser, String officialWebsite) {
+        if (officialWebsite == null || officialWebsite.isBlank()) {
+            return null;
+        }
+        Page page = browser.newPage();
+        try {
+            page.navigate(officialWebsite, new Page.NavigateOptions().setWaitUntil(WaitUntilState.DOMCONTENTLOADED));
+            return (String) page.evaluate("""
+                    () => {
+                      const bodyText = (document.body && document.body.innerText) ? document.body.innerText : '';
+                      return bodyText.slice(0, 30000);
+                    }
+                    """);
+        } catch (Exception e) {
+            log.debug("Could not read homepage text {}: {}", officialWebsite, e.getMessage());
+            return null;
+        } finally {
+            page.close();
+        }
+    }
+
+    private String extractHost(String url) {
+        try {
+            return java.net.URI.create(url).getHost();
+        } catch (Exception e) {
+            return null;
         }
     }
 

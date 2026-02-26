@@ -37,7 +37,7 @@ class SupermarketDiscoveryServiceTest {
         when(openStreetMapClient.discoverSupermarkets("Bangkok", "Thailand", any()))
                 .thenReturn(List.of(SupermarketDTO.builder().name("Big C").source("OPENSTREETMAP").build()));
         when(playwrightClient.filterSupermarketsByIngredient(any(), any(), any()))
-                .thenReturn(List.of());
+                .thenReturn(List.of(SupermarketDTO.builder().name("Big C").source("OPENSTREETMAP").build()));
         when(playwrightClient.enrichSupermarketsMetadata(any(), any(), any()))
                 .thenReturn(List.of(SupermarketDTO.builder().name("Big C").source("OPENSTREETMAP").address("Bangkok").build()));
 
@@ -57,7 +57,7 @@ class SupermarketDiscoveryServiceTest {
         when(playwrightClient.discoverBySearch("Bangkok", "Thailand"))
                 .thenReturn(List.of(SupermarketDTO.builder().name("Lotus's").source("PLAYWRIGHT_FALLBACK").build()));
         when(playwrightClient.filterSupermarketsByIngredient(any(), any(), any()))
-                .thenReturn(List.of());
+                .thenReturn(List.of(SupermarketDTO.builder().name("Lotus's").source("PLAYWRIGHT_FALLBACK").build()));
         when(playwrightClient.enrichSupermarketsMetadata(any(), any(), any()))
                 .thenReturn(List.of(SupermarketDTO.builder().name("Lotus's").source("PLAYWRIGHT_FALLBACK").address("Bangkok").build()));
 
