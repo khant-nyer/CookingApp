@@ -1,9 +1,7 @@
 package com.chef.william.controller;
 
 import com.chef.william.dto.IngredientDTO;
-import com.chef.william.dto.discovery.SupermarketDiscoveryResponseDTO;
 import com.chef.william.service.IngredientService;
-import com.chef.william.service.ingredient.discovery.SupermarketDiscoveryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -22,7 +20,6 @@ import java.util.List;
 public class IngredientController {
 
     private final IngredientService ingredientService;
-    private final SupermarketDiscoveryService supermarketDiscoveryService;
 
     // CREATE: POST /api/ingredients
     @Operation(summary = "Create one ingredient", description = "Accepts a single IngredientDTO JSON object")
@@ -98,12 +95,4 @@ public class IngredientController {
         return ResponseEntity.ok(results);
     }
 
-    @GetMapping("/discover-supermarkets")
-    public ResponseEntity<SupermarketDiscoveryResponseDTO> discoverSupermarkets(
-            @RequestParam("ingredientName") String ingredientName,
-            @RequestParam("city") String city) {
-
-        SupermarketDiscoveryResponseDTO response = supermarketDiscoveryService.discover(ingredientName, city);
-        return ResponseEntity.ok(response);
-    }
 }
