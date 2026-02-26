@@ -3,9 +3,9 @@ package com.chef.william.service.ingredient.discovery;
 import com.chef.william.dto.discovery.SupermarketDTO;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserType;
-import com.microsoft.playwright.LoadState;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
+import com.microsoft.playwright.options.WaitUntilState;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -31,7 +31,7 @@ public class PlaywrightSupermarketDiscoveryClient {
         try (Playwright playwright = Playwright.create()) {
             Browser browser = playwright.chromium().launch(new BrowserType.LaunchOptions().setHeadless(true));
             Page page = browser.newPage();
-            page.navigate(url, new Page.NavigateOptions().setWaitUntil(LoadState.DOMCONTENTLOADED));
+            page.navigate(url, new Page.NavigateOptions().setWaitUntil(WaitUntilState.DOMCONTENTLOADED));
 
             @SuppressWarnings("unchecked")
             List<String> titles = (List<String>) page.evaluate("""
