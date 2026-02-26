@@ -87,12 +87,7 @@ public class OpenStreetMapSupermarketDiscoveryClient {
                 out tags center %d;
                 """.formatted(escapeOverpassValue(city), maxSupermarkets * 3);
 
-        String url = UriComponentsBuilder.fromHttpUrl(OVERPASS_URL)
-                .queryParam("data", query)
-                .encode(StandardCharsets.UTF_8)
-                .toUriString();
-
-        JsonNode root = readJsonObject(url);
+        JsonNode root = executeOverpassQuery(query);
         if (root == null || !root.has("elements")) {
             return List.of();
         }
@@ -167,6 +162,27 @@ public class OpenStreetMapSupermarketDiscoveryClient {
             return objectMapper.readTree(response.getBody());
         } catch (Exception e) {
             log.warn("Discovery API call failed for URL {}: {}", url, e.getMessage());
+            return null;
+        }
+    }
+
+    private JsonNode executeOverpassQuery(String query) {
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+            headers.setContentType(MediaType.TEXT_PLAIN);
+            headers.set("User-Agent", userAgent);
+
+            ResponseEntity<String> response = restTemplate.exchange(
+                    OVERPASS_URL,
+                    HttpMethod.POST,
+                    new HttpEntity<>(query, headers),
+                    String.class
+            );
+
+            return objectMapper.readTree(response.getBody());
+        } catch (Exception e) {
+            log.warn("Discovery API call failed for Overpass query {}: {}", query, e.getMessage());
             return null;
         }
     }
