@@ -34,6 +34,10 @@ public class SupermarketDiscoveryService {
         if (filtered != null && !filtered.isEmpty()) {
             supermarkets = filtered;
         }
+        List<SupermarketDTO> enriched = playwrightClient.enrichSupermarketsMetadata(supermarkets, ingredientName, city);
+        if (enriched != null && !enriched.isEmpty()) {
+            supermarkets = enriched;
+        }
         supermarkets = supermarkets.stream().filter(Objects::nonNull).toList();
 
         return SupermarketDiscoveryResponseDTO.builder()

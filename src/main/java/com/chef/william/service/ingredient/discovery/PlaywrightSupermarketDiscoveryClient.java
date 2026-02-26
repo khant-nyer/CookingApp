@@ -30,6 +30,9 @@ public class PlaywrightSupermarketDiscoveryClient {
     @Value("${app.discovery.max-ingredient-checks:5}")
     private int maxIngredientChecks;
 
+    @Value("${app.discovery.max-metadata-checks:10}")
+    private int maxMetadataChecks;
+
     public List<SupermarketDTO> discoverBySearch(String city, String country) {
         String query = "popular supermarkets in " + city;
         String url = "https://duckduckgo.com/?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8);
@@ -121,6 +124,58 @@ public class PlaywrightSupermarketDiscoveryClient {
         }
     }
 
+    public List<SupermarketDTO> enrichSupermarketsMetadata(List<SupermarketDTO> supermarkets,
+                                                            String ingredientName,
+                                                            String city) {
+        if (supermarkets == null || supermarkets.isEmpty()) {
+            return List.of();
+        }
+        try (Playwright playwright = Playwright.create()) {
+            Browser browser = playwright.chromium().launch(new BrowserType.LaunchOptions().setHeadless(true));
+            List<SupermarketDTO> enriched = new ArrayList<>();
+            int checks = 0;
+
+            for (SupermarketDTO supermarket : supermarkets) {
+                if (supermarket == null) {
+                    continue;
+                }
+
+                String website = supermarket.getOfficialOnlineWebpage();
+                String priceRange = supermarket.getMatchedIngredientPriceRange();
+                String address = supermarket.getAddress();
+
+                if (checks < maxMetadataChecks && (website == null || priceRange == null)) {
+                    checks++;
+                    IngredientSignal signal = inspectIngredientSignal(browser, supermarket.getName(), ingredientName, city);
+                    if (website == null) {
+                        website = signal.officialWebpage();
+                    }
+                    if (priceRange == null) {
+                        priceRange = signal.priceRange();
+                    }
+                }
+
+                enriched.add(SupermarketDTO.builder()
+                        .name(supermarket.getName())
+                        .officialOnlineWebpage(website)
+                        .matchedIngredientPriceRange(priceRange)
+                        .city(supermarket.getCity())
+                        .country(supermarket.getCountry())
+                        .address(address == null || address.isBlank() ? city : address)
+                        .latitude(supermarket.getLatitude())
+                        .longitude(supermarket.getLongitude())
+                        .source(supermarket.getSource())
+                        .build());
+            }
+
+            browser.close();
+            return enriched;
+        } catch (Exception e) {
+            log.warn("Metadata enrichment failed for ingredient {} in city {}: {}", ingredientName, city, e.getMessage());
+            return supermarkets;
+        }
+    }
+
     private IngredientSignal inspectIngredientSignal(Browser browser, String supermarketName, String ingredientName, String city) {
         String query = supermarketName + " " + city + " " + ingredientName;
         String url = "https://duckduckgo.com/?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8);
@@ -158,14 +213,11 @@ public class PlaywrightSupermarketDiscoveryClient {
 
             boolean matched = snippets.stream().anyMatch(text -> containsTokens(text, normalizedIngredient, normalizedSupermarket))
                     || titles.stream().anyMatch(text -> containsTokens(text, normalizedIngredient, normalizedSupermarket));
-            if (!matched) {
-                return IngredientSignal.notMatched();
-            }
 
             String priceRange = extractPriceRange(snippets, titles);
             String website = links.isEmpty() ? null : links.getFirst();
 
-            return new IngredientSignal(true, website, priceRange);
+            return new IngredientSignal(matched, website, priceRange);
         } catch (Exception ex) {
             log.debug("Ingredient signal check failed for supermarket {} and ingredient {}: {}", supermarketName, ingredientName, ex.getMessage());
             return IngredientSignal.notMatched();

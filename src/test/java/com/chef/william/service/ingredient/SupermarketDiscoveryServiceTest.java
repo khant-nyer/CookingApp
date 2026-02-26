@@ -38,6 +38,8 @@ class SupermarketDiscoveryServiceTest {
                 .thenReturn(List.of(SupermarketDTO.builder().name("Big C").source("OPENSTREETMAP").build()));
         when(playwrightClient.filterSupermarketsByIngredient(any(), any(), any()))
                 .thenReturn(List.of());
+        when(playwrightClient.enrichSupermarketsMetadata(any(), any(), any()))
+                .thenReturn(List.of(SupermarketDTO.builder().name("Big C").source("OPENSTREETMAP").address("Bangkok").build()));
 
         SupermarketDiscoveryResponseDTO response = supermarketDiscoveryService.discover("tomato", "Bangkok");
 
@@ -56,6 +58,8 @@ class SupermarketDiscoveryServiceTest {
                 .thenReturn(List.of(SupermarketDTO.builder().name("Lotus's").source("PLAYWRIGHT_FALLBACK").build()));
         when(playwrightClient.filterSupermarketsByIngredient(any(), any(), any()))
                 .thenReturn(List.of());
+        when(playwrightClient.enrichSupermarketsMetadata(any(), any(), any()))
+                .thenReturn(List.of(SupermarketDTO.builder().name("Lotus's").source("PLAYWRIGHT_FALLBACK").address("Bangkok").build()));
 
         SupermarketDiscoveryResponseDTO response = supermarketDiscoveryService.discover("tomato", "Bangkok");
 
@@ -81,6 +85,8 @@ class SupermarketDiscoveryServiceTest {
         when(openStreetMapClient.discoverSupermarkets("Bangkok", "Thailand", any()))
                 .thenReturn(List.of(bigC, tops));
         when(playwrightClient.filterSupermarketsByIngredient(any(), any(), any()))
+                .thenReturn(List.of(filteredBigC));
+        when(playwrightClient.enrichSupermarketsMetadata(any(), any(), any()))
                 .thenReturn(List.of(filteredBigC));
 
         SupermarketDiscoveryResponseDTO response = supermarketDiscoveryService.discover("tomato", "Bangkok");

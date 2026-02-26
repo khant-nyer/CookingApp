@@ -153,6 +153,12 @@ public class OpenStreetMapSupermarketDiscoveryClient {
             }
 
             String address = compactAddress(tags);
+            if (address == null) {
+                address = textOrNull(tags, "addr:full");
+            }
+            if (address == null) {
+                address = city;
+            }
             Double lat = element.path("lat").isNumber() ? element.path("lat").asDouble() :
                     (element.path("center").path("lat").isNumber() ? element.path("center").path("lat").asDouble() : null);
             Double lon = element.path("lon").isNumber() ? element.path("lon").asDouble() :
@@ -160,7 +166,7 @@ public class OpenStreetMapSupermarketDiscoveryClient {
 
             unique.put(key, SupermarketDTO.builder()
                     .name(name.trim())
-                    .officialOnlineWebpage(resolveWebsite(tags))
+                    .officialOnlineWebpage(resolveWebsite(tags, name))
                     .matchedIngredientPriceRange(null)
                     .city(city)
                     .country(countryName)
@@ -222,13 +228,29 @@ public class OpenStreetMapSupermarketDiscoveryClient {
                 .orElse(null);
     }
 
-    private String resolveWebsite(JsonNode tags) {
+    private String resolveWebsite(JsonNode tags, String supermarketName) {
         String website = textOrNull(tags, "website");
         if (website == null) {
             website = textOrNull(tags, "contact:website");
         }
         if (website == null) {
             website = textOrNull(tags, "brand:website");
+        }
+        if (website == null && supermarketName != null) {
+            String normalized = supermarketName.toLowerCase();
+            if (normalized.contains("big c")) {
+                website = "https://www.bigc.co.th";
+            } else if (normalized.contains("lotus") || normalized.contains("tesco")) {
+                website = "https://www.lotuss.com";
+            } else if (normalized.contains("foodland")) {
+                website = "https://www.foodland.co.th";
+            } else if (normalized.contains("tops")) {
+                website = "https://www.tops.co.th";
+            } else if (normalized.contains("villa")) {
+                website = "https://shop.villamarket.com";
+            } else if (normalized.contains("makro")) {
+                website = "https://www.makro.pro";
+            }
         }
         return website;
     }
