@@ -93,7 +93,7 @@ public class OpenStreetMapSupermarketDiscoveryClient {
             return List.of();
         }
 
-        return mapSupermarkets(root, city, countryName);
+        return mapSupermarkets(root, city, countryName, cityContext == null ? null : cityContext.countryCode());
     }
 
     private String buildOverpassQuery(String city, CityContext cityContext) {
@@ -135,7 +135,7 @@ public class OpenStreetMapSupermarketDiscoveryClient {
                 """.formatted(escapeOverpassValue(city), maxSupermarkets * fetchMultiplier);
     }
 
-    private List<SupermarketDTO> mapSupermarkets(JsonNode root, String city, String countryName) {
+    private List<SupermarketDTO> mapSupermarkets(JsonNode root, String city, String countryName, String countryCode) {
         Map<String, SupermarketDTO> unique = new LinkedHashMap<>();
         for (JsonNode element : root.path("elements")) {
             JsonNode tags = element.path("tags");
@@ -166,7 +166,7 @@ public class OpenStreetMapSupermarketDiscoveryClient {
 
             unique.put(key, SupermarketDTO.builder()
                     .name(name.trim())
-                    .officialOnlineWebpage(resolveWebsite(tags, name))
+                    .officialOnlineWebpage(resolveWebsite(tags, name, countryCode))
                     .matchedIngredientPriceRange(null)
                     .city(city)
                     .country(countryName)
@@ -228,7 +228,7 @@ public class OpenStreetMapSupermarketDiscoveryClient {
                 .orElse(null);
     }
 
-    private String resolveWebsite(JsonNode tags, String supermarketName) {
+    private String resolveWebsite(JsonNode tags, String supermarketName, String countryCode) {
         String website = textOrNull(tags, "website");
         if (website == null) {
             website = textOrNull(tags, "contact:website");
@@ -236,7 +236,10 @@ public class OpenStreetMapSupermarketDiscoveryClient {
         if (website == null) {
             website = textOrNull(tags, "brand:website");
         }
-        if (website == null && supermarketName != null) {
+
+        // Brand-to-domain heuristics are country-sensitive to avoid incorrect cross-country domains
+        // (e.g. Big C in Vietnam should not default to Thailand website).
+        if (website == null && supermarketName != null && "th".equalsIgnoreCase(countryCode)) {
             String normalized = supermarketName.toLowerCase();
             if (normalized.contains("big c")) {
                 website = "https://www.bigc.co.th";
