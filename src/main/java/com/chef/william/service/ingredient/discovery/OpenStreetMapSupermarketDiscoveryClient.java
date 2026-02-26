@@ -16,7 +16,7 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -42,6 +42,9 @@ public class OpenStreetMapSupermarketDiscoveryClient {
 
     @Value("${app.discovery.search-radius-meters:12000}")
     private int searchRadiusMeters;
+
+    @Value("${app.discovery.fetch-multiplier:20}")
+    private int fetchMultiplier;
 
     public Optional<CityContext> resolveCity(String city) {
         String url = UriComponentsBuilder.fromHttpUrl(NOMINATIM_URL)
@@ -99,15 +102,21 @@ public class OpenStreetMapSupermarketDiscoveryClient {
                     [out:json][timeout:25];
                     (
                       node["shop"="supermarket"](around:%d,%s,%s);
+                      node["shop"="hypermarket"](around:%d,%s,%s);
                       way["shop"="supermarket"](around:%d,%s,%s);
+                      way["shop"="hypermarket"](around:%d,%s,%s);
                       relation["shop"="supermarket"](around:%d,%s,%s);
+                      relation["shop"="hypermarket"](around:%d,%s,%s);
                     );
                     out tags center %d;
                     """.formatted(
                     searchRadiusMeters, cityContext.latitude(), cityContext.longitude(),
                     searchRadiusMeters, cityContext.latitude(), cityContext.longitude(),
                     searchRadiusMeters, cityContext.latitude(), cityContext.longitude(),
-                    maxSupermarkets * 3
+                    searchRadiusMeters, cityContext.latitude(), cityContext.longitude(),
+                    searchRadiusMeters, cityContext.latitude(), cityContext.longitude(),
+                    searchRadiusMeters, cityContext.latitude(), cityContext.longitude(),
+                    maxSupermarkets * fetchMultiplier
             );
         }
 
@@ -116,11 +125,14 @@ public class OpenStreetMapSupermarketDiscoveryClient {
                 area[\"name\"=\"%s\"][\"boundary\"=\"administrative\"]->.searchArea;
                 (
                   node[\"shop\"=\"supermarket\"](area.searchArea);
+                  node[\"shop\"=\"hypermarket\"](area.searchArea);
                   way[\"shop\"=\"supermarket\"](area.searchArea);
+                  way[\"shop\"=\"hypermarket\"](area.searchArea);
                   relation[\"shop\"=\"supermarket\"](area.searchArea);
+                  relation[\"shop\"=\"hypermarket\"](area.searchArea);
                 );
                 out tags center %d;
-                """.formatted(escapeOverpassValue(city), maxSupermarkets * 3);
+                """.formatted(escapeOverpassValue(city), maxSupermarkets * fetchMultiplier);
     }
 
     private List<SupermarketDTO> mapSupermarkets(JsonNode root, String city, String countryName) {
@@ -156,11 +168,31 @@ public class OpenStreetMapSupermarketDiscoveryClient {
                     .source("OPENSTREETMAP")
                     .build());
 
-            if (unique.size() >= maxSupermarkets) {
-                break;
-            }
         }
-        return new ArrayList<>(unique.values());
+
+        return unique.values().stream()
+                .sorted(Comparator.comparingInt(this::priorityScore)
+                        .thenComparing(SupermarketDTO::getName, String.CASE_INSENSITIVE_ORDER))
+                .limit(maxSupermarkets)
+                .toList();
+    }
+
+    private int priorityScore(SupermarketDTO supermarket) {
+        String name = supermarket.getName() == null ? "" : supermarket.getName().toLowerCase();
+
+        if (name.contains("big c")) {
+            return 0;
+        }
+        if (name.contains("lotus") || name.contains("tesco")) {
+            return 1;
+        }
+        if (name.contains("tops") || name.contains("villa") || name.contains("foodland") || name.contains("makro")) {
+            return 2;
+        }
+        if (name.contains("supermarket") || name.contains("hypermarket") || name.contains("market")) {
+            return 3;
+        }
+        return 4;
     }
 
     private boolean isNumeric(String value) {
