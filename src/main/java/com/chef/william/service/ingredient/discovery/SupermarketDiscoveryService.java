@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -28,6 +29,12 @@ public class SupermarketDiscoveryService {
             supermarkets = playwrightClient.discoverBySearch(city, cityContext.countryName());
             fallbackUsed = true;
         }
+
+        List<SupermarketDTO> filtered = playwrightClient.filterSupermarketsByIngredient(supermarkets, ingredientName, city);
+        if (filtered != null && !filtered.isEmpty()) {
+            supermarkets = filtered;
+        }
+        supermarkets = supermarkets.stream().filter(Objects::nonNull).toList();
 
         return SupermarketDiscoveryResponseDTO.builder()
                 .ingredientName(ingredientName)

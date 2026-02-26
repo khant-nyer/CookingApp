@@ -36,6 +36,8 @@ class SupermarketDiscoveryServiceTest {
                 .thenReturn(Optional.of(new OpenStreetMapSupermarketDiscoveryClient.CityContext("Bangkok", "Thailand", "th", "13.7563", "100.5018")));
         when(openStreetMapClient.discoverSupermarkets("Bangkok", "Thailand", any()))
                 .thenReturn(List.of(SupermarketDTO.builder().name("Big C").source("OPENSTREETMAP").build()));
+        when(playwrightClient.filterSupermarketsByIngredient(any(), any(), any()))
+                .thenReturn(List.of());
 
         SupermarketDiscoveryResponseDTO response = supermarketDiscoveryService.discover("tomato", "Bangkok");
 
@@ -52,11 +54,31 @@ class SupermarketDiscoveryServiceTest {
                 .thenReturn(List.of());
         when(playwrightClient.discoverBySearch("Bangkok", "Thailand"))
                 .thenReturn(List.of(SupermarketDTO.builder().name("Lotus's").source("PLAYWRIGHT_FALLBACK").build()));
+        when(playwrightClient.filterSupermarketsByIngredient(any(), any(), any()))
+                .thenReturn(List.of());
 
         SupermarketDiscoveryResponseDTO response = supermarketDiscoveryService.discover("tomato", "Bangkok");
 
         assertThat(response.isFallbackUsed()).isTrue();
         assertThat(response.getSupermarkets()).hasSize(1);
         assertThat(response.getSupermarkets().getFirst().getSource()).isEqualTo("PLAYWRIGHT_FALLBACK");
+    }
+
+    @Test
+    void shouldReturnIngredientFilteredSupermarketsWhenSignalsFound() {
+        SupermarketDTO bigC = SupermarketDTO.builder().name("Big C").source("OPENSTREETMAP").build();
+        SupermarketDTO tops = SupermarketDTO.builder().name("Tops").source("OPENSTREETMAP").build();
+
+        when(openStreetMapClient.resolveCity("Bangkok"))
+                .thenReturn(Optional.of(new OpenStreetMapSupermarketDiscoveryClient.CityContext("Bangkok", "Thailand", "th", "13.7563", "100.5018")));
+        when(openStreetMapClient.discoverSupermarkets("Bangkok", "Thailand", any()))
+                .thenReturn(List.of(bigC, tops));
+        when(playwrightClient.filterSupermarketsByIngredient(any(), any(), any()))
+                .thenReturn(List.of(bigC));
+
+        SupermarketDiscoveryResponseDTO response = supermarketDiscoveryService.discover("tomato", "Bangkok");
+
+        assertThat(response.getSupermarkets()).hasSize(1);
+        assertThat(response.getSupermarkets().getFirst().getName()).isEqualTo("Big C");
     }
 }
