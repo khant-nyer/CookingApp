@@ -19,14 +19,14 @@ public class SupermarketDiscoveryService {
         OpenStreetMapSupermarketDiscoveryClient.CityContext cityContext = openStreetMapClient.resolveCity(city)
                 .orElse(new OpenStreetMapSupermarketDiscoveryClient.CityContext(city, null, null, null, null));
 
-        List<SupermarketDTO> supermarkets = openStreetMapClient.discoverSupermarkets(
-                city,
-                cityContext.countryName(),
-                cityContext);
+        List<SupermarketDTO> supermarkets = playwrightClient.discoverBySearch(city, cityContext.countryName());
 
         boolean fallbackUsed = false;
         if (supermarkets.isEmpty()) {
-            supermarkets = playwrightClient.discoverBySearch(city, cityContext.countryName());
+            supermarkets = openStreetMapClient.discoverSupermarkets(
+                    city,
+                    cityContext.countryName(),
+                    cityContext);
             fallbackUsed = true;
         }
 
