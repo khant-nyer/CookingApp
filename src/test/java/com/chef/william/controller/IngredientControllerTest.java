@@ -24,6 +24,7 @@ class IngredientControllerTest {
     private MockMvc mockMvc;
 
 
+    @SuppressWarnings("unused")
     @MockBean
     private IngredientService ingredientService;
 

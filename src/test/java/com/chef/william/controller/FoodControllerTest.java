@@ -35,9 +35,11 @@ class FoodControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @SuppressWarnings("unused")
     @MockBean
     private FoodService foodService;
 
+    @SuppressWarnings("unused")
     @MockBean
     private RecipeService recipeService;
 
@@ -83,8 +85,8 @@ class FoodControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  \"name\": \"Tom Yum\",
-                                  \"category\": \"Soup\"
+                                  "name": "Tom Yum",
+                                  "category": "Soup"
                                 }
                                 """))
                 .andExpect(status().isCreated())

@@ -22,8 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -58,7 +57,7 @@ class FoodServiceTest {
 
         FoodRecipeStatusDTO status = foodService.getFoodRecipeStatus(1L);
 
-        assertEquals(false, status.isHasRecipe());
+        assertFalse(status.isHasRecipe());
         assertEquals("There is no recipe for this food yet, create one", status.getMessage());
     }
 
@@ -85,7 +84,7 @@ class FoodServiceTest {
         assertEquals(10L, result.getId());
         assertEquals(1, result.getRecipeCount());
         assertEquals(1, result.getRecipes().size());
-        assertEquals(2L, result.getRecipes().get(0).getId());
+        assertEquals(2L, result.getRecipes().getFirst().getId());
         assertEquals("https://img.example/pad-thai.jpg", result.getImageUrl());
     }
 

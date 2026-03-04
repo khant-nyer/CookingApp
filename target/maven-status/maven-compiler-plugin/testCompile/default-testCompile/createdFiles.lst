@@ -1,1 +1,9 @@
+com\chef\william\controller\IngredientControllerTest.class
+com\chef\william\service\recipe\RecipeMergeServiceTest.class
+com\chef\william\service\IngredientServiceTest.class
+com\chef\william\controller\FoodControllerTest.class
 com\chef\william\CookingAppApplicationTests.class
+com\chef\william\service\mapper\IngredientMapperTest.class
+com\chef\william\model\enums\UnitTest.class
+com\chef\william\service\RecipeServiceTest.class
+com\chef\william\service\FoodServiceTest.class
