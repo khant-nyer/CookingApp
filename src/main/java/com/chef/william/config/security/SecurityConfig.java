@@ -5,13 +5,10 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
-import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
 import org.springframework.security.oauth2.jwt.*;
 import org.springframework.security.web.SecurityFilterChain;
 
-import java.util.List;
 
 @Configuration
 public class SecurityConfig {
@@ -33,38 +30,11 @@ public class SecurityConfig {
         NimbusJwtDecoder jwtDecoder = JwtDecoders.fromIssuerLocation(cognitoProperties.issuerUri());
 
         OAuth2TokenValidator<Jwt> withIssuer = JwtValidators.createDefaultWithIssuer(cognitoProperties.issuerUri());
-        OAuth2TokenValidator<Jwt> accessTokenValidator = tokenUseValidator();
-        OAuth2TokenValidator<Jwt> clientIdValidator = clientIdValidator(cognitoProperties.getAppClientId());
+        OAuth2TokenValidator<Jwt> accessTokenValidator = CognitoJwtClaimValidators.accessTokenUse();
+        OAuth2TokenValidator<Jwt> clientIdValidator = CognitoJwtClaimValidators.clientIdMatches(cognitoProperties.getAppClientId());
 
         jwtDecoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(withIssuer, accessTokenValidator, clientIdValidator));
         return jwtDecoder;
     }
 
-    private OAuth2TokenValidator<Jwt> tokenUseValidator() {
-        return jwt -> {
-            String tokenUse = jwt.getClaimAsString("token_use");
-            if ("access".equals(tokenUse)) {
-                return OAuth2TokenValidatorResult.success();
-            }
-            OAuth2Error error = new OAuth2Error("invalid_token", "Token must be an access token", null);
-            return OAuth2TokenValidatorResult.failure(error);
-        };
-    }
-
-    private OAuth2TokenValidator<Jwt> clientIdValidator(String appClientId) {
-        return jwt -> {
-            String clientId = jwt.getClaimAsString("client_id");
-            if (appClientId.equals(clientId)) {
-                return OAuth2TokenValidatorResult.success();
-            }
-
-            List<String> audience = jwt.getAudience();
-            if (audience != null && audience.contains(appClientId)) {
-                return OAuth2TokenValidatorResult.success();
-            }
-
-            OAuth2Error error = new OAuth2Error("invalid_token", "Token client does not match configured app client", null);
-            return OAuth2TokenValidatorResult.failure(error);
-        };
-    }
 }
