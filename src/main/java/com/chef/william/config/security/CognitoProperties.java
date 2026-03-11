@@ -21,7 +21,13 @@ public class CognitoProperties {
     @NotBlank
     private String appClientId;
 
+    private String appClientSecret;
+
     public String issuerUri() {
         return "https://cognito-idp." + region + ".amazonaws.com/" + userPoolId;
+    }
+
+    public boolean hasAppClientSecret() {
+        return appClientSecret != null && !appClientSecret.isBlank();
     }
 }

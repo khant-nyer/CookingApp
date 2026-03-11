@@ -13,11 +13,13 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.SignUpRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.SignUpResponse;
 
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
@@ -32,11 +34,12 @@ class AuthServiceTest {
     @Mock
     private UserRepository userRepository;
 
+    private CognitoProperties properties;
     private AuthService authService;
 
     @BeforeEach
     void setUp() {
-        CognitoProperties properties = new CognitoProperties();
+        properties = new CognitoProperties();
         properties.setAppClientId("app-client-id");
         properties.setRegion("ap-southeast-2");
         properties.setUserPoolId("pool-id");
@@ -72,6 +75,29 @@ class AuthServiceTest {
         ArgumentCaptor<com.chef.william.model.User> captor = ArgumentCaptor.forClass(com.chef.william.model.User.class);
         verify(userRepository).save(captor.capture());
         assertEquals("https://example.com/me.jpg", captor.getValue().getProfileImageUrl());
+    }
+
+    @Test
+    void registerShouldIncludeSecretHashWhenClientSecretConfigured() {
+        properties.setAppClientSecret("super-secret");
+
+        RegisterUserRequest request = new RegisterUserRequest();
+        request.setEmail("chef@example.com");
+        request.setUserName("chef");
+        request.setPassword("MyPassword123!");
+
+        when(userRepository.findByEmail("chef@example.com")).thenReturn(Optional.empty());
+        when(cognitoClient.signUp(any())).thenReturn(SignUpResponse.builder()
+                .userSub("sub-123")
+                .userConfirmed(false)
+                .build());
+        when(userRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        authService.register(request);
+
+        ArgumentCaptor<SignUpRequest> requestCaptor = ArgumentCaptor.forClass(SignUpRequest.class);
+        verify(cognitoClient).signUp(requestCaptor.capture());
+        assertNotNull(requestCaptor.getValue().secretHash());
     }
 
     @Test
