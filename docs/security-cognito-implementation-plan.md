@@ -106,3 +106,4 @@ Login/logout stay on the frontend and are not handled by backend endpoints.
 - Phase 1 implemented
 - Phase 2 implemented
 - Phase 3 implemented
+- Phase 4 implemented

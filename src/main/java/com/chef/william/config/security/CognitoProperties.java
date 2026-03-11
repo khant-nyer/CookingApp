@@ -20,4 +20,8 @@ public class CognitoProperties {
 
     @NotBlank
     private String appClientId;
+
+    public String issuerUri() {
+        return "https://cognito-idp." + region + ".amazonaws.com/" + userPoolId;
+    }
 }
