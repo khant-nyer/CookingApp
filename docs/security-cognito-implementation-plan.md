@@ -92,3 +92,17 @@ Login/logout stay on the frontend and are not handled by backend endpoints.
 2. Merge JWT validation in monitor mode for dev testing.
 3. Enable endpoint protection for all non-auth API paths.
 4. Release registration endpoint and frontend integration.
+
+
+## Environment values provided
+- region: `ap-southeast-2`
+- user pool id: `ap-southeast-2_iesyw1kMl`
+- app client id: `2v36scmicr5rqoqio57g4hnqcv`
+- API token expectation: access token only
+- signup confirmation: email verification required
+- groups: `admin`, `user`
+
+## Delivery in current PR
+- Phase 1 implemented
+- Phase 2 implemented
+- Phase 3 implemented
