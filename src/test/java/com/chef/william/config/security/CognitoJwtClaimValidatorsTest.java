@@ -41,6 +41,22 @@ class CognitoJwtClaimValidatorsTest {
         assertFalse(result.hasErrors());
     }
 
+
+
+    @Test
+    void clientIdValidatorShouldPassWhenAzpMatchesClientId() {
+        Jwt jwt = jwtWithClaims(Map.of("token_use", "access", "azp", "client-a"), List.of());
+        OAuth2TokenValidatorResult result = CognitoJwtClaimValidators.clientIdMatches("client-a").validate(jwt);
+        assertFalse(result.hasErrors());
+    }
+
+    @Test
+    void clientIdValidatorShouldPassWhenConfiguredClientIdHasWhitespace() {
+        Jwt jwt = jwtWithClaims(Map.of("token_use", "access", "client_id", "client-a"), List.of());
+        OAuth2TokenValidatorResult result = CognitoJwtClaimValidators.clientIdMatches("  client-a  ").validate(jwt);
+        assertFalse(result.hasErrors());
+    }
+
     @Test
     void clientIdValidatorShouldFailWhenNoClaimMatches() {
         Jwt jwt = jwtWithClaims(Map.of("token_use", "access", "client_id", "client-b"), List.of("other"));
