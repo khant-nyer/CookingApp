@@ -19,6 +19,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(RecipeController.class)
@@ -38,6 +39,15 @@ class SecurityConfigTest {
     void protectedEndpointShouldReturnUnauthorizedWhenTokenMissing() throws Exception {
         mockMvc.perform(get("/api/recipes/1"))
                 .andExpect(status().isUnauthorized());
+    }
+
+
+    @Test
+    void preflightRequestShouldBeAllowedWithoutToken() throws Exception {
+        mockMvc.perform(options("/api/recipes/1")
+                        .header("Origin", "http://localhost:5173")
+                        .header("Access-Control-Request-Method", "GET"))
+                .andExpect(status().isOk());
     }
 
     @Test
