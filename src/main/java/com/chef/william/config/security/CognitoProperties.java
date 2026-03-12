@@ -30,10 +30,22 @@ public class CognitoProperties {
      */
     private String appClientIds;
 
+    /**
+     * Optional explicit JWKS URI. When absent, it is derived from region and userPoolId.
+     */
+    private String jwkSetUri;
+
     private String appClientSecret;
 
     public String issuerUri() {
         return "https://cognito-idp." + region + ".amazonaws.com/" + userPoolId;
+    }
+
+    public String resolvedJwkSetUri() {
+        if (jwkSetUri != null && !jwkSetUri.trim().isBlank()) {
+            return jwkSetUri.trim();
+        }
+        return issuerUri() + "/.well-known/jwks.json";
     }
 
     public boolean hasAppClientSecret() {
