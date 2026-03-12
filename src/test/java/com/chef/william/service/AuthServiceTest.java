@@ -17,7 +17,9 @@ import software.amazon.awssdk.services.cognitoidentityprovider.model.NotAuthoriz
 import software.amazon.awssdk.services.cognitoidentityprovider.model.SignUpRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.SignUpResponse;
 
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -76,6 +78,13 @@ class AuthServiceTest {
         ArgumentCaptor<com.chef.william.model.User> captor = ArgumentCaptor.forClass(com.chef.william.model.User.class);
         verify(userRepository).save(captor.capture());
         assertEquals("https://example.com/me.jpg", captor.getValue().getProfileImageUrl());
+
+        ArgumentCaptor<SignUpRequest> signUpCaptor = ArgumentCaptor.forClass(SignUpRequest.class);
+        verify(cognitoClient).signUp(signUpCaptor.capture());
+        Map<String, String> attributesByName = signUpCaptor.getValue().userAttributes().stream()
+                .collect(Collectors.toMap(attribute -> attribute.name(), attribute -> attribute.value()));
+        assertEquals("chef@example.com", attributesByName.get("email"));
+        assertEquals("chef", attributesByName.get("preferred_username"));
     }
 
     @Test

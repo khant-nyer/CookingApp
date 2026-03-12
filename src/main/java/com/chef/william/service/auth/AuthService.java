@@ -46,10 +46,16 @@ public class AuthService {
                     .clientId(cognitoProperties.getAppClientId())
                     .username(request.getEmail())
                     .password(request.getPassword())
-                    .userAttributes(AttributeType.builder()
-                            .name("email")
-                            .value(request.getEmail())
-                            .build());
+                    .userAttributes(
+                            AttributeType.builder()
+                                    .name("email")
+                                    .value(request.getEmail())
+                                    .build(),
+                            AttributeType.builder()
+                                    .name("preferred_username")
+                                    .value(request.getUserName())
+                                    .build()
+                    );
 
             if (cognitoProperties.hasAppClientSecret()) {
                 signUpBuilder.secretHash(calculateSecretHash(
