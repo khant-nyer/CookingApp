@@ -1,7 +1,12 @@
+C:\Users\User\Desktop\CookingApp\src\test\java\com\chef\william\config\security\CognitoJwtClaimValidatorsTest.java
+C:\Users\User\Desktop\CookingApp\src\test\java\com\chef\william\config\security\SecurityConfigTest.java
+C:\Users\User\Desktop\CookingApp\src\test\java\com\chef\william\controller\auth\AuthControllerTest.java
 C:\Users\User\Desktop\CookingApp\src\test\java\com\chef\william\controller\FoodControllerTest.java
 C:\Users\User\Desktop\CookingApp\src\test\java\com\chef\william\controller\IngredientControllerTest.java
 C:\Users\User\Desktop\CookingApp\src\test\java\com\chef\william\CookingAppApplicationTests.java
 C:\Users\User\Desktop\CookingApp\src\test\java\com\chef\william\model\enums\UnitTest.java
+C:\Users\User\Desktop\CookingApp\src\test\java\com\chef\william\service\AuthServiceTest.java
+C:\Users\User\Desktop\CookingApp\src\test\java\com\chef\william\service\CurrentUserServiceTest.java
 C:\Users\User\Desktop\CookingApp\src\test\java\com\chef\william\service\FoodServiceTest.java
 C:\Users\User\Desktop\CookingApp\src\test\java\com\chef\william\service\IngredientServiceTest.java
 C:\Users\User\Desktop\CookingApp\src\test\java\com\chef\william\service\mapper\IngredientMapperTest.java

@@ -1,9 +1,19 @@
 C:\Users\User\Desktop\CookingApp\src\main\java\com\chef\william\config\CorsConfig.java
 C:\Users\User\Desktop\CookingApp\src\main\java\com\chef\william\config\OpenApiConfig.java
+C:\Users\User\Desktop\CookingApp\src\main\java\com\chef\william\config\security\CognitoClientConfig.java
+C:\Users\User\Desktop\CookingApp\src\main\java\com\chef\william\config\security\CognitoJwtClaimValidators.java
+C:\Users\User\Desktop\CookingApp\src\main\java\com\chef\william\config\security\CognitoProperties.java
+C:\Users\User\Desktop\CookingApp\src\main\java\com\chef\william\config\security\SecurityConfig.java
+C:\Users\User\Desktop\CookingApp\src\main\java\com\chef\william\controller\auth\AuthController.java
+C:\Users\User\Desktop\CookingApp\src\main\java\com\chef\william\controller\auth\UserProfileController.java
 C:\Users\User\Desktop\CookingApp\src\main\java\com\chef\william\controller\FoodController.java
 C:\Users\User\Desktop\CookingApp\src\main\java\com\chef\william\controller\IngredientController.java
 C:\Users\User\Desktop\CookingApp\src\main\java\com\chef\william\controller\RecipeController.java
 C:\Users\User\Desktop\CookingApp\src\main\java\com\chef\william\CookingAppApplication.java
+C:\Users\User\Desktop\CookingApp\src\main\java\com\chef\william\dto\auth\RegisterUserRequest.java
+C:\Users\User\Desktop\CookingApp\src\main\java\com\chef\william\dto\auth\RegisterUserResponse.java
+C:\Users\User\Desktop\CookingApp\src\main\java\com\chef\william\dto\auth\UpdateProfileRequest.java
+C:\Users\User\Desktop\CookingApp\src\main\java\com\chef\william\dto\auth\UserProfileResponse.java
 C:\Users\User\Desktop\CookingApp\src\main\java\com\chef\william\dto\FoodDTO.java
 C:\Users\User\Desktop\CookingApp\src\main\java\com\chef\william\dto\FoodRecipeStatusDTO.java
 C:\Users\User\Desktop\CookingApp\src\main\java\com\chef\william\dto\IngredientDTO.java
@@ -12,6 +22,7 @@ C:\Users\User\Desktop\CookingApp\src\main\java\com\chef\william\dto\NutritionDTO
 C:\Users\User\Desktop\CookingApp\src\main\java\com\chef\william\dto\RecipeDTO.java
 C:\Users\User\Desktop\CookingApp\src\main\java\com\chef\william\dto\RecipeIngredientDTO.java
 C:\Users\User\Desktop\CookingApp\src\main\java\com\chef\william\dto\UserDTO.java
+C:\Users\User\Desktop\CookingApp\src\main\java\com\chef\william\exception\auth\CognitoRegistrationException.java
 C:\Users\User\Desktop\CookingApp\src\main\java\com\chef\william\exception\BusinessException.java
 C:\Users\User\Desktop\CookingApp\src\main\java\com\chef\william\exception\DuplicateResourceException.java
 C:\Users\User\Desktop\CookingApp\src\main\java\com\chef\william\exception\exceptionResponse\ErrorResponse.java
@@ -33,6 +44,9 @@ C:\Users\User\Desktop\CookingApp\src\main\java\com\chef\william\repository\FoodR
 C:\Users\User\Desktop\CookingApp\src\main\java\com\chef\william\repository\IngredientRepository.java
 C:\Users\User\Desktop\CookingApp\src\main\java\com\chef\william\repository\RecipeRepository.java
 C:\Users\User\Desktop\CookingApp\src\main\java\com\chef\william\repository\UserRepository.java
+C:\Users\User\Desktop\CookingApp\src\main\java\com\chef\william\service\auth\AuthService.java
+C:\Users\User\Desktop\CookingApp\src\main\java\com\chef\william\service\auth\CurrentUserService.java
+C:\Users\User\Desktop\CookingApp\src\main\java\com\chef\william\service\auth\UserProfileService.java
 C:\Users\User\Desktop\CookingApp\src\main\java\com\chef\william\service\FoodService.java
 C:\Users\User\Desktop\CookingApp\src\main\java\com\chef\william\service\ingredient\IngredientSearchService.java
 C:\Users\User\Desktop\CookingApp\src\main\java\com\chef\william\service\IngredientService.java
