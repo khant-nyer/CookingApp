@@ -46,10 +46,16 @@ public class AuthService {
                     .clientId(cognitoProperties.getAppClientId())
                     .username(request.getEmail())
                     .password(request.getPassword())
-                    .userAttributes(AttributeType.builder()
-                            .name("email")
-                            .value(request.getEmail())
-                            .build());
+                    .userAttributes(
+                            AttributeType.builder()
+                                    .name("email")
+                                    .value(request.getEmail())
+                                    .build(),
+                            AttributeType.builder()
+                                    .name("preferred_username")
+                                    .value(request.getUserName())
+                                    .build()
+                    );
 
             if (cognitoProperties.hasAppClientSecret()) {
                 signUpBuilder.secretHash(calculateSecretHash(
@@ -65,8 +71,7 @@ public class AuthService {
         } catch (InvalidPasswordException | InvalidParameterException ex) {
             throw new IllegalArgumentException(ex.getMessage());
         } catch (NotAuthorizedException ex) {
-            throw new IllegalArgumentException("Cognito authorization failed during sign-up. " +
-                    "If your app client has a secret, set security.cognito.app-client-secret in backend config.");
+            throw new IllegalArgumentException(buildAuthorizationFailureMessage(ex));
         } catch (CognitoIdentityProviderException ex) {
             String detail = ex.awsErrorDetails() != null ? ex.awsErrorDetails().errorMessage() : ex.getMessage();
             throw new CognitoRegistrationException("Failed to register user with Cognito: " + detail, ex);
@@ -101,5 +106,17 @@ public class AuthService {
         } catch (Exception ex) {
             throw new IllegalStateException("Failed to calculate Cognito secret hash", ex);
         }
+    }
+
+    private String buildAuthorizationFailureMessage(NotAuthorizedException ex) {
+        String detail = ex.awsErrorDetails() != null ? ex.awsErrorDetails().errorMessage() : ex.getMessage();
+
+        if (cognitoProperties.hasAppClientSecret()) {
+            return "Cognito authorization failed during sign-up: " + detail +
+                    ". Check security.cognito.app-client-secret and app client settings in Cognito.";
+        }
+
+        return "Cognito authorization failed during sign-up: " + detail +
+                ". If your app client has a secret, set security.cognito.app-client-secret in backend config.";
     }
 }

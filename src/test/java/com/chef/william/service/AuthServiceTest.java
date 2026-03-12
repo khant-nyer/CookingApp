@@ -13,10 +13,13 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.NotAuthorizedException;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.SignUpRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.SignUpResponse;
 
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -75,6 +78,13 @@ class AuthServiceTest {
         ArgumentCaptor<com.chef.william.model.User> captor = ArgumentCaptor.forClass(com.chef.william.model.User.class);
         verify(userRepository).save(captor.capture());
         assertEquals("https://example.com/me.jpg", captor.getValue().getProfileImageUrl());
+
+        ArgumentCaptor<SignUpRequest> signUpCaptor = ArgumentCaptor.forClass(SignUpRequest.class);
+        verify(cognitoClient).signUp(signUpCaptor.capture());
+        Map<String, String> attributesByName = signUpCaptor.getValue().userAttributes().stream()
+                .collect(Collectors.toMap(attribute -> attribute.name(), attribute -> attribute.value()));
+        assertEquals("chef@example.com", attributesByName.get("email"));
+        assertEquals("chef", attributesByName.get("preferred_username"));
     }
 
     @Test
@@ -98,6 +108,49 @@ class AuthServiceTest {
         ArgumentCaptor<SignUpRequest> requestCaptor = ArgumentCaptor.forClass(SignUpRequest.class);
         verify(cognitoClient).signUp(requestCaptor.capture());
         assertNotNull(requestCaptor.getValue().secretHash());
+    }
+
+
+    @Test
+    void registerShouldGiveSecretHintWhenNotAuthorizedAndSecretNotConfigured() {
+        RegisterUserRequest request = new RegisterUserRequest();
+        request.setEmail("chef@example.com");
+        request.setUserName("chef");
+        request.setPassword("MyPassword123!");
+
+        when(userRepository.findByEmail("chef@example.com")).thenReturn(Optional.empty());
+        when(cognitoClient.signUp(any())).thenThrow(NotAuthorizedException.builder()
+                .message("Client secret mismatch")
+                .build());
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> authService.register(request));
+
+        assertEquals(
+                "Cognito authorization failed during sign-up: Client secret mismatch. If your app client has a secret, set security.cognito.app-client-secret in backend config.",
+                exception.getMessage()
+        );
+    }
+
+    @Test
+    void registerShouldSuggestValidatingConfiguredSecretWhenNotAuthorized() {
+        properties.setAppClientSecret("super-secret");
+
+        RegisterUserRequest request = new RegisterUserRequest();
+        request.setEmail("chef@example.com");
+        request.setUserName("chef");
+        request.setPassword("MyPassword123!");
+
+        when(userRepository.findByEmail("chef@example.com")).thenReturn(Optional.empty());
+        when(cognitoClient.signUp(any())).thenThrow(NotAuthorizedException.builder()
+                .message("Unable to verify secret hash for client")
+                .build());
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> authService.register(request));
+
+        assertEquals(
+                "Cognito authorization failed during sign-up: Unable to verify secret hash for client. Check security.cognito.app-client-secret and app client settings in Cognito.",
+                exception.getMessage()
+        );
     }
 
     @Test
