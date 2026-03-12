@@ -27,11 +27,11 @@ public class SecurityConfig {
 
     @Bean
     public JwtDecoder jwtDecoder(CognitoProperties cognitoProperties) {
-        NimbusJwtDecoder jwtDecoder = JwtDecoders.fromIssuerLocation(cognitoProperties.issuerUri());
+        NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder.withJwkSetUri(cognitoProperties.resolvedJwkSetUri()).build();
 
         OAuth2TokenValidator<Jwt> withIssuer = JwtValidators.createDefaultWithIssuer(cognitoProperties.issuerUri());
         OAuth2TokenValidator<Jwt> accessTokenValidator = CognitoJwtClaimValidators.accessTokenUse();
-        OAuth2TokenValidator<Jwt> clientIdValidator = CognitoJwtClaimValidators.clientIdMatches(cognitoProperties.getAppClientId());
+        OAuth2TokenValidator<Jwt> clientIdValidator = CognitoJwtClaimValidators.clientIdMatches(cognitoProperties.getAllowedAppClientIds());
 
         jwtDecoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(withIssuer, accessTokenValidator, clientIdValidator));
         return jwtDecoder;
