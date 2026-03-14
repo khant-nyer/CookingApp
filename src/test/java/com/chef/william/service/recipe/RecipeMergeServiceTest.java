@@ -17,7 +17,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -90,7 +89,7 @@ class RecipeMergeServiceTest {
                 InstructionDTO.builder().step(2).description("New step").build()
         ));
 
-        when(ingredientRepository.findById(2L)).thenReturn(Optional.of(pepper));
+        when(ingredientRepository.findAllById(org.mockito.ArgumentMatchers.any())).thenReturn(List.of(pepper));
 
         recipeMergeService.mergeIngredients(recipe, update);
         recipeMergeService.mergeInstructions(recipe, update);

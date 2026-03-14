@@ -19,11 +19,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -147,5 +149,49 @@ class IngredientServiceTest {
 
         assertThrows(BusinessException.class,
                 () -> ingredientService.searchIngredientByNutrient("INVALID", 1.0));
+    }
+
+    @Test
+    void createIngredientsShouldSaveAllInBatch() {
+        IngredientDTO saltDto = new IngredientDTO();
+        saltDto.setName("Salt");
+        saltDto.setServingAmount(100.0);
+        saltDto.setServingUnit(Unit.G);
+
+        IngredientDTO pepperDto = new IngredientDTO();
+        pepperDto.setName("Pepper");
+        pepperDto.setServingAmount(100.0);
+        pepperDto.setServingUnit(Unit.G);
+
+        when(ingredientRepository.findExistingNormalizedNames(Set.of("salt", "pepper"))).thenReturn(Set.of());
+        when(ingredientRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(ingredientMapper.toDto(any(Ingredient.class))).thenAnswer(invocation -> {
+            Ingredient source = invocation.getArgument(0);
+            IngredientDTO mapped = new IngredientDTO();
+            mapped.setName(source.getName());
+            mapped.setServingAmount(source.getServingAmount());
+            mapped.setServingUnit(Unit.fromAbbreviation(source.getServingUnit()));
+            return mapped;
+        });
+
+        List<IngredientDTO> result = ingredientService.createIngredients(List.of(saltDto, pepperDto));
+
+        assertEquals(2, result.size());
+        verify(ingredientRepository).saveAll(any());
+    }
+
+    @Test
+    void createIngredientsShouldThrowWhenAnyNameAlreadyExists() {
+        IngredientDTO dto = new IngredientDTO();
+        dto.setName("Salt");
+        dto.setServingAmount(100.0);
+        dto.setServingUnit(Unit.G);
+
+        when(ingredientRepository.findExistingNormalizedNames(Set.of("salt"))).thenReturn(Set.of("salt"));
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> ingredientService.createIngredients(List.of(dto)));
+
+        assertEquals("Ingredient already exists: Salt", ex.getMessage());
     }
 }

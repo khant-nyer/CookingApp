@@ -7,8 +7,10 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Repository
 public interface IngredientRepository extends JpaRepository<Ingredient, Long> {
@@ -27,5 +29,8 @@ public interface IngredientRepository extends JpaRepository<Ingredient, Long> {
     List<Ingredient> findByNutrientAndMinValue(
             @Param("nutrient") Nutrients nutrient,
             @Param("minValue") double minValue);
+
+    @Query("SELECT LOWER(i.name) FROM Ingredient i WHERE LOWER(i.name) IN :names")
+    Set<String> findExistingNormalizedNames(@Param("names") Collection<String> names);
 
 }
