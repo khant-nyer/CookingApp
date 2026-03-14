@@ -17,8 +17,9 @@ public class RecipeIngredientDTO {
 
     private String ingredientName;
 
+    @NotNull(message = "Quantity is required")
     @Positive(message = "Quantity must be positive")
-    private double quantity;
+    private Double quantity;
 
     @NotNull(message = "Unit is required")
     private Unit unit;

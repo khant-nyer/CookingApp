@@ -34,8 +34,16 @@ public class IngredientService {
     @Transactional
     public List<IngredientDTO> createIngredients(List<IngredientDTO> dtos) {
         validateBulkCreatePayload(dtos);
-        return dtos.stream()
-                .map(this::createIngredient)
+        List<Ingredient> ingredients = dtos.stream()
+                .map(dto -> {
+                    Ingredient ingredient = new Ingredient();
+                    ingredientMapper.updateEntityFromDto(dto, ingredient);
+                    return ingredient;
+                })
+                .toList();
+
+        return ingredientRepository.saveAll(ingredients).stream()
+                .map(ingredientMapper::toDto)
                 .toList();
     }
 
@@ -95,9 +103,16 @@ public class IngredientService {
             if (!normalizedNames.add(normalized)) {
                 throw new BusinessException("Duplicate ingredient name in bulk payload: " + dto.getName());
             }
-            if (ingredientRepository.existsByNameIgnoreCase(dto.getName().trim())) {
-                throw new BusinessException("Ingredient already exists: " + dto.getName());
-            }
+        }
+
+        Set<String> existingNames = ingredientRepository.findExistingNormalizedNames(normalizedNames);
+        if (!existingNames.isEmpty()) {
+            String duplicated = dtos.stream()
+                    .map(dto -> dto.getName().trim())
+                    .filter(name -> existingNames.contains(name.toLowerCase()))
+                    .findFirst()
+                    .orElse(existingNames.iterator().next());
+            throw new BusinessException("Ingredient already exists: " + duplicated);
         }
     }
 }
