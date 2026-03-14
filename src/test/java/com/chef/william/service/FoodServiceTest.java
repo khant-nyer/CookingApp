@@ -119,4 +119,27 @@ class FoodServiceTest {
 
         verify(foodRepository, never()).save(any(Food.class));
     }
+
+    @Test
+    void getAllFoodsShouldUseBatchCountsAndNotMapRecipes() {
+        Food food1 = new Food();
+        food1.setId(1L);
+        food1.setName("Ramen");
+
+        Food food2 = new Food();
+        food2.setId(2L);
+        food2.setName("Tom Yum");
+
+        when(foodRepository.findAll()).thenReturn(List.of(food1, food2));
+        when(recipeRepository.countByFoodIds(List.of(1L, 2L)))
+                .thenReturn(List.of(new Object[]{1L, 2L}, new Object[]{2L, 1L}));
+
+        List<FoodDTO> result = foodService.getAllFoods();
+
+        assertEquals(2, result.size());
+        assertEquals(2, result.get(0).getRecipeCount());
+        assertEquals(1, result.get(1).getRecipeCount());
+        assertTrue(result.get(0).getRecipes().isEmpty());
+        assertTrue(result.get(1).getRecipes().isEmpty());
+    }
 }

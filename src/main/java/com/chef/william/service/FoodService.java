@@ -14,7 +14,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -64,7 +66,16 @@ public class FoodService {
 
     @Transactional(readOnly = true)
     public List<FoodDTO> getAllFoods() {
-        return foodRepository.findAll().stream().map(this::mapToDto).toList();
+        List<Food> foods = foodRepository.findAll();
+        if (foods.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, Integer> recipeCountByFoodId = getRecipeCountByFoodIds(foods.stream().map(Food::getId).toList());
+
+        return foods.stream()
+                .map(food -> mapToSummaryDto(food, recipeCountByFoodId.getOrDefault(food.getId(), 0)))
+                .toList();
     }
 
     @Transactional
@@ -105,6 +116,20 @@ public class FoodService {
                 ? List.of()
                 : food.getRecipes().stream().map(recipeMapper::toDto).toList();
         return new FoodDTO(food.getId(), food.getName(), food.getCategory(), food.getImageUrl(), recipeCount, recipes);
+    }
+
+    private FoodDTO mapToSummaryDto(Food food, int recipeCount) {
+        return new FoodDTO(food.getId(), food.getName(), food.getCategory(), food.getImageUrl(), recipeCount, List.of());
+    }
+
+    private Map<Long, Integer> getRecipeCountByFoodIds(List<Long> foodIds) {
+        Map<Long, Integer> countByFoodId = new HashMap<>();
+        for (Object[] row : recipeRepository.countByFoodIds(foodIds)) {
+            Long foodId = (Long) row[0];
+            Number count = (Number) row[1];
+            countByFoodId.put(foodId, count.intValue());
+        }
+        return countByFoodId;
     }
 
     private void createRecipeVersions(Long foodId, List<RecipeDTO> recipes) {

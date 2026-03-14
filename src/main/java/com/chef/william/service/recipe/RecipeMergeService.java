@@ -14,7 +14,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -37,6 +39,21 @@ public class RecipeMergeService {
 
         recipe.getRecipeIngredients().removeIf(ri -> !incomingIngIds.contains(ri.getIngredient().getId()));
 
+        Set<Long> idsToFetch = dto.getIngredients().stream()
+                .map(RecipeIngredientDTO::getIngredientId)
+                .filter(id -> !existingMap.containsKey(id))
+                .collect(Collectors.toSet());
+
+        Map<Long, Ingredient> ingredientsById = ingredientRepository.findAllById(idsToFetch).stream()
+                .collect(Collectors.toMap(Ingredient::getId, Function.identity()));
+
+        if (ingredientsById.size() != idsToFetch.size()) {
+            List<Long> missingIds = idsToFetch.stream()
+                    .filter(id -> !ingredientsById.containsKey(id))
+                    .toList();
+            throw new ResourceNotFoundException("Ingredient not found with id(s): " + missingIds);
+        }
+
         for (RecipeIngredientDTO riDto : dto.getIngredients()) {
             RecipeIngredient ri = existingMap.get(riDto.getIngredientId());
 
@@ -47,9 +64,7 @@ public class RecipeMergeService {
                 continue;
             }
 
-            Ingredient ingredient = ingredientRepository.findById(riDto.getIngredientId())
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            "Ingredient not found with id: " + riDto.getIngredientId()));
+            Ingredient ingredient = ingredientsById.get(riDto.getIngredientId());
 
             ri = new RecipeIngredient();
             ri.setRecipe(recipe);
