@@ -59,7 +59,7 @@ class AuthServiceTest {
         request.setProfileImageUrl("https://example.com/me.jpg");
 
         when(userRepository.findByEmail("chef@example.com")).thenReturn(Optional.empty());
-        when(cognitoClient.signUp(any())).thenReturn(SignUpResponse.builder()
+        when(cognitoClient.signUp(any(SignUpRequest.class))).thenReturn(SignUpResponse.builder()
                 .userSub("sub-123")
                 .userConfirmed(false)
                 .build());
@@ -97,7 +97,7 @@ class AuthServiceTest {
         request.setPassword("MyPassword123!");
 
         when(userRepository.findByEmail("chef@example.com")).thenReturn(Optional.empty());
-        when(cognitoClient.signUp(any())).thenReturn(SignUpResponse.builder()
+        when(cognitoClient.signUp(any(SignUpRequest.class))).thenReturn(SignUpResponse.builder()
                 .userSub("sub-123")
                 .userConfirmed(false)
                 .build());
@@ -119,7 +119,7 @@ class AuthServiceTest {
         request.setPassword("MyPassword123!");
 
         when(userRepository.findByEmail("chef@example.com")).thenReturn(Optional.empty());
-        when(cognitoClient.signUp(any())).thenThrow(NotAuthorizedException.builder()
+        when(cognitoClient.signUp(any(SignUpRequest.class))).thenThrow(NotAuthorizedException.builder()
                 .message("Client secret mismatch")
                 .build());
 
@@ -141,7 +141,7 @@ class AuthServiceTest {
         request.setPassword("MyPassword123!");
 
         when(userRepository.findByEmail("chef@example.com")).thenReturn(Optional.empty());
-        when(cognitoClient.signUp(any())).thenThrow(NotAuthorizedException.builder()
+        when(cognitoClient.signUp(any(SignUpRequest.class))).thenThrow(NotAuthorizedException.builder()
                 .message("Unable to verify secret hash for client")
                 .build());
 

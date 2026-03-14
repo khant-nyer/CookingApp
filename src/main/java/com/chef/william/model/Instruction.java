@@ -2,7 +2,8 @@ package com.chef.william.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.NoArgsConstructor;
 
 @Entity
@@ -13,7 +14,8 @@ import lombok.NoArgsConstructor;
         indexes = {
                 @Index(name = "idx_recipe_step", columnList = "recipe_id, step")
         })
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 public class Instruction {
