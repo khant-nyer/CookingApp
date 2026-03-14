@@ -107,10 +107,6 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleMissingRequestParam(MissingServletRequestParameterException ex) {
         String message = "Missing required request parameter: " + ex.getParameterName();
 
-        if ("city".equals(ex.getParameterName())) {
-            message = "Missing required request parameter: city";
-        }
-
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),
                 message,
@@ -179,7 +175,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneralException(Exception ex){
-        log.error("Unexpected error occurred: {}", ex.getMessage());
+        log.error("Unexpected error occurred", ex);
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 "An unexpected error occurred",
