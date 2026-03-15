@@ -80,7 +80,6 @@ class FoodServiceTest {
         RecipeDTO recipeDTO = RecipeDTO.builder().id(2L).version("v1").build();
 
         when(foodRepository.save(any(Food.class))).thenReturn(food);
-        when(recipeRepository.countByFoodId(10L)).thenReturn(1);
         when(recipeRepository.findByFoodId(10L)).thenReturn(List.of(recipe));
         when(recipeMapper.toDto(recipe)).thenReturn(recipeDTO);
 
@@ -108,7 +107,6 @@ class FoodServiceTest {
                 .build();
 
         when(foodRepository.save(any(Food.class))).thenReturn(food);
-        when(recipeRepository.countByFoodId(12L)).thenReturn(1);
         when(recipeRepository.findByFoodId(12L)).thenReturn(List.of());
 
         foodService.createFood(new FoodDTO(null, "Som Tum", "Salad", "https://img.example/som-tum.jpg", null, List.of(recipeDTO)));
