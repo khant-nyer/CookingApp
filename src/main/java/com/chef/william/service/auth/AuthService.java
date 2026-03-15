@@ -3,14 +3,22 @@ package com.chef.william.service.auth;
 import com.chef.william.config.security.CognitoProperties;
 import com.chef.william.dto.auth.RegisterUserRequest;
 import com.chef.william.dto.auth.RegisterUserResponse;
+import com.chef.william.exception.BusinessException;
 import com.chef.william.exception.DuplicateResourceException;
 import com.chef.william.exception.auth.CognitoRegistrationException;
 import com.chef.william.model.User;
+import com.chef.william.model.auth.RegistrationIdempotencyRecord;
+import com.chef.william.model.auth.RegistrationIdempotencyStatus;
+import com.chef.william.repository.RegistrationIdempotencyRepository;
 import com.chef.william.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminDeleteUserRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AttributeType;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.CognitoIdentityProviderException;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.InvalidParameterException;
@@ -23,8 +31,11 @@ import software.amazon.awssdk.services.cognitoidentityprovider.model.UsernameExi
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.time.LocalDateTime;
 import java.util.Base64;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -32,9 +43,78 @@ public class AuthService {
     private final CognitoIdentityProviderClient cognitoClient;
     private final CognitoProperties cognitoProperties;
     private final UserRepository userRepository;
+    private final RegistrationIdempotencyRepository idempotencyRepository;
+
+    @Value("${app.idempotency.registration.ttl-minutes:1440}")
+    private long idempotencyTtlMinutes;
 
     @Transactional
-    public RegisterUserResponse register(RegisterUserRequest request) {
+    public RegisterUserResponse register(RegisterUserRequest request, String idempotencyKey) {
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            throw new BusinessException("Idempotency-Key header is required for registration requests");
+        }
+
+        String normalizedKey = idempotencyKey.trim();
+        String requestHash = calculateRequestHash(request);
+        LocalDateTime now = LocalDateTime.now();
+
+        RegistrationIdempotencyRecord record = getOrCreateRecord(normalizedKey, requestHash, now);
+        if (record.getStatus() == RegistrationIdempotencyStatus.COMPLETED) {
+            return toResponse(record);
+        }
+        if (record.getStatus() == RegistrationIdempotencyStatus.IN_PROGRESS) {
+            throw new BusinessException("Registration request is already being processed for this idempotency key");
+        }
+
+        try {
+            RegisterUserResponse response = performRegistration(request);
+            markCompleted(record, response);
+            return response;
+        } catch (RuntimeException ex) {
+            record.setStatus(RegistrationIdempotencyStatus.FAILED);
+            idempotencyRepository.save(record);
+            throw ex;
+        }
+    }
+
+    private RegistrationIdempotencyRecord getOrCreateRecord(String idempotencyKey, String requestHash, LocalDateTime now) {
+        return idempotencyRepository.findByIdempotencyKey(idempotencyKey)
+                .map(existing -> handleExistingRecord(existing, requestHash, now))
+                .orElseGet(() -> createInProgressRecord(idempotencyKey, requestHash, now));
+    }
+
+    private RegistrationIdempotencyRecord handleExistingRecord(RegistrationIdempotencyRecord existing,
+                                                                String requestHash,
+                                                                LocalDateTime now) {
+        if (existing.getExpiresAt().isBefore(now)) {
+            idempotencyRepository.delete(existing);
+            return createInProgressRecord(existing.getIdempotencyKey(), requestHash, now);
+        }
+
+        if (!existing.getRequestHash().equals(requestHash)) {
+            throw new BusinessException("Idempotency key was already used with a different registration payload");
+        }
+
+        return existing;
+    }
+
+    private RegistrationIdempotencyRecord createInProgressRecord(String idempotencyKey,
+                                                                  String requestHash,
+                                                                  LocalDateTime now) {
+        RegistrationIdempotencyRecord record = new RegistrationIdempotencyRecord();
+        record.setIdempotencyKey(idempotencyKey);
+        record.setRequestHash(requestHash);
+        record.setStatus(RegistrationIdempotencyStatus.IN_PROGRESS);
+        record.setExpiresAt(now.plusMinutes(idempotencyTtlMinutes));
+        try {
+            return idempotencyRepository.save(record);
+        } catch (DataIntegrityViolationException ex) {
+            return idempotencyRepository.findByIdempotencyKey(idempotencyKey)
+                    .orElseThrow(() -> ex);
+        }
+    }
+
+    private RegisterUserResponse performRegistration(RegisterUserRequest request) {
         userRepository.findByEmail(request.getEmail())
                 .ifPresent(existing -> {
                     throw new DuplicateResourceException("User", "email", request.getEmail());
@@ -69,9 +149,9 @@ public class AuthService {
         } catch (UsernameExistsException ex) {
             throw new DuplicateResourceException("User", "email", request.getEmail());
         } catch (InvalidPasswordException | InvalidParameterException ex) {
-            throw new IllegalArgumentException(ex.getMessage());
+            throw new BusinessException(ex.getMessage());
         } catch (NotAuthorizedException ex) {
-            throw new IllegalArgumentException(buildAuthorizationFailureMessage(ex));
+            throw new BusinessException(buildAuthorizationFailureMessage(ex));
         } catch (CognitoIdentityProviderException ex) {
             String detail = ex.awsErrorDetails() != null ? ex.awsErrorDetails().errorMessage() : ex.getMessage();
             throw new CognitoRegistrationException("Failed to register user with Cognito: " + detail, ex);
@@ -83,7 +163,14 @@ public class AuthService {
         user.setProfileImageUrl(request.getProfileImageUrl());
         user.setCognitoSub(signUpResponse.userSub());
 
-        User saved = userRepository.save(user);
+        User saved;
+        try {
+            saved = userRepository.save(user);
+        } catch (RuntimeException ex) {
+            rollbackCognitoRegistration(request.getEmail());
+            throw new CognitoRegistrationException(
+                    "User was created in Cognito but failed to persist in local database", ex);
+        }
 
         return RegisterUserResponse.builder()
                 .id(saved.getId())
@@ -93,6 +180,56 @@ public class AuthService {
                 .cognitoSub(saved.getCognitoSub())
                 .status(signUpResponse.userConfirmed() ? "CONFIRMED" : "PENDING_EMAIL_VERIFICATION")
                 .build();
+    }
+
+    private void markCompleted(RegistrationIdempotencyRecord record, RegisterUserResponse response) {
+        record.setStatus(RegistrationIdempotencyStatus.COMPLETED);
+        record.setResponseUserId(response.getId());
+        record.setResponseEmail(response.getEmail());
+        record.setResponseUserName(response.getUserName());
+        record.setResponseProfileImageUrl(response.getProfileImageUrl());
+        record.setResponseCognitoSub(response.getCognitoSub());
+        record.setResponseStatus(response.getStatus());
+        idempotencyRepository.save(record);
+    }
+
+    private RegisterUserResponse toResponse(RegistrationIdempotencyRecord record) {
+        return RegisterUserResponse.builder()
+                .id(record.getResponseUserId())
+                .email(record.getResponseEmail())
+                .userName(record.getResponseUserName())
+                .profileImageUrl(record.getResponseProfileImageUrl())
+                .cognitoSub(record.getResponseCognitoSub())
+                .status(record.getResponseStatus())
+                .build();
+    }
+
+    private void rollbackCognitoRegistration(String email) {
+        try {
+            cognitoClient.adminDeleteUser(AdminDeleteUserRequest.builder()
+                    .userPoolId(cognitoProperties.getUserPoolId())
+                    .username(email)
+                    .build());
+            log.warn("Rolled back Cognito user after local persistence failure for email={}", email);
+        } catch (CognitoIdentityProviderException rollbackEx) {
+            log.error("Failed to rollback Cognito user for email={}", email, rollbackEx);
+        }
+    }
+
+    private String calculateRequestHash(RegisterUserRequest request) {
+        String raw = request.getEmail() + "|" + request.getUserName() + "|" + request.getPassword() + "|"
+                + (request.getProfileImageUrl() == null ? "" : request.getProfileImageUrl());
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(raw.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : hash) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (Exception ex) {
+            throw new IllegalStateException("Failed to calculate request hash", ex);
+        }
     }
 
     private String calculateSecretHash(String username, String clientId, String clientSecret) {

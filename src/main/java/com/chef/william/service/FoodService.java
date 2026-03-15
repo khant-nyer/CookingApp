@@ -14,6 +14,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -65,17 +68,15 @@ public class FoodService {
     }
 
     @Transactional(readOnly = true)
-    public List<FoodDTO> getAllFoods() {
-        List<Food> foods = foodRepository.findAll();
+    public Page<FoodDTO> getAllFoods(Pageable pageable) {
+        Page<Food> foods = foodRepository.findAll(pageable);
         if (foods.isEmpty()) {
-            return List.of();
+            return foods.map(this::mapToDto);
         }
 
         Map<Long, Integer> recipeCountByFoodId = getRecipeCountByFoodIds(foods.stream().map(Food::getId).toList());
 
-        return foods.stream()
-                .map(food -> mapToSummaryDto(food, recipeCountByFoodId.getOrDefault(food.getId(), 0)))
-                .toList();
+        return foods.map(food -> mapToSummaryDto(food, recipeCountByFoodId.getOrDefault(food.getId(), 0)));
     }
 
     @Transactional
@@ -91,8 +92,7 @@ public class FoodService {
         Food food = foodRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Food not found with id: " + id));
 
-        int recipeCount = food.getRecipes() == null ? 0 : food.getRecipes().size();
-        boolean hasRecipe = recipeCount > 0;
+        boolean hasRecipe = recipeRepository.existsByFoodId(food.getId());
         String message = hasRecipe
                 ? "Recipes are available for this food"
                 : "There is no recipe for this food yet, create one";
@@ -112,9 +112,9 @@ public class FoodService {
 
     private FoodDTO mapToDto(Food food) {
         int recipeCount = recipeRepository.countByFoodId(food.getId());
-        List<RecipeDTO> recipes = food.getRecipes() == null
-                ? List.of()
-                : food.getRecipes().stream().map(recipeMapper::toDto).toList();
+        List<RecipeDTO> recipes = recipeRepository.findByFoodId(food.getId()).stream()
+                .map(recipeMapper::toDto)
+                .toList();
         return new FoodDTO(food.getId(), food.getName(), food.getCategory(), food.getImageUrl(), recipeCount, recipes);
     }
 
@@ -124,10 +124,8 @@ public class FoodService {
 
     private Map<Long, Integer> getRecipeCountByFoodIds(List<Long> foodIds) {
         Map<Long, Integer> countByFoodId = new HashMap<>();
-        for (Object[] row : recipeRepository.countByFoodIds(foodIds)) {
-            Long foodId = (Long) row[0];
-            Number count = (Number) row[1];
-            countByFoodId.put(foodId, count.intValue());
+        for (var row : recipeRepository.countByFoodIds(foodIds)) {
+            countByFoodId.put(row.getFoodId(), (int) row.getRecipeCount());
         }
         return countByFoodId;
     }

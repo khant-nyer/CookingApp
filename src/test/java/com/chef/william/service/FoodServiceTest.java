@@ -8,15 +8,19 @@ import com.chef.william.dto.RecipeIngredientDTO;
 import com.chef.william.exception.DuplicateResourceException;
 import com.chef.william.model.Food;
 import com.chef.william.model.Recipe;
+import com.chef.william.model.enums.Unit;
+import com.chef.william.repository.FoodRecipeCountProjection;
 import com.chef.william.repository.FoodRepository;
 import com.chef.william.repository.RecipeRepository;
 import com.chef.william.service.mapper.RecipeMapper;
-import com.chef.william.model.enums.Unit;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -54,6 +58,7 @@ class FoodServiceTest {
         food.setRecipes(new ArrayList<>());
 
         when(foodRepository.findById(1L)).thenReturn(Optional.of(food));
+        when(recipeRepository.existsByFoodId(1L)).thenReturn(false);
 
         FoodRecipeStatusDTO status = foodService.getFoodRecipeStatus(1L);
 
@@ -71,12 +76,12 @@ class FoodServiceTest {
         Recipe recipe = new Recipe();
         recipe.setId(2L);
         recipe.setVersion("v1");
-        food.setRecipes(List.of(recipe));
 
         RecipeDTO recipeDTO = RecipeDTO.builder().id(2L).version("v1").build();
 
         when(foodRepository.save(any(Food.class))).thenReturn(food);
         when(recipeRepository.countByFoodId(10L)).thenReturn(1);
+        when(recipeRepository.findByFoodId(10L)).thenReturn(List.of(recipe));
         when(recipeMapper.toDto(recipe)).thenReturn(recipeDTO);
 
         FoodDTO result = foodService.createFood(new FoodDTO(null, "Pad Thai", "Noodle", "https://img.example/pad-thai.jpg", null, List.of()));
@@ -104,6 +109,7 @@ class FoodServiceTest {
 
         when(foodRepository.save(any(Food.class))).thenReturn(food);
         when(recipeRepository.countByFoodId(12L)).thenReturn(1);
+        when(recipeRepository.findByFoodId(12L)).thenReturn(List.of());
 
         foodService.createFood(new FoodDTO(null, "Som Tum", "Salad", "https://img.example/som-tum.jpg", null, List.of(recipeDTO)));
 
@@ -130,16 +136,31 @@ class FoodServiceTest {
         food2.setId(2L);
         food2.setName("Tom Yum");
 
-        when(foodRepository.findAll()).thenReturn(List.of(food1, food2));
+        when(foodRepository.findAll(PageRequest.of(0, 20)))
+                .thenReturn(new PageImpl<>(List.of(food1, food2), PageRequest.of(0, 20), 2));
         when(recipeRepository.countByFoodIds(List.of(1L, 2L)))
-                .thenReturn(List.of(new Object[]{1L, 2L}, new Object[]{2L, 1L}));
+                .thenReturn(List.of(projection(1L, 2), projection(2L, 1)));
 
-        List<FoodDTO> result = foodService.getAllFoods();
+        Page<FoodDTO> result = foodService.getAllFoods(PageRequest.of(0, 20));
 
-        assertEquals(2, result.size());
-        assertEquals(2, result.get(0).getRecipeCount());
-        assertEquals(1, result.get(1).getRecipeCount());
-        assertTrue(result.get(0).getRecipes().isEmpty());
-        assertTrue(result.get(1).getRecipes().isEmpty());
+        assertEquals(2, result.getContent().size());
+        assertEquals(2, result.getContent().get(0).getRecipeCount());
+        assertEquals(1, result.getContent().get(1).getRecipeCount());
+        assertTrue(result.getContent().get(0).getRecipes().isEmpty());
+        assertTrue(result.getContent().get(1).getRecipes().isEmpty());
+    }
+
+    private FoodRecipeCountProjection projection(Long foodId, long recipeCount) {
+        return new FoodRecipeCountProjection() {
+            @Override
+            public Long getFoodId() {
+                return foodId;
+            }
+
+            @Override
+            public long getRecipeCount() {
+                return recipeCount;
+            }
+        };
     }
 }

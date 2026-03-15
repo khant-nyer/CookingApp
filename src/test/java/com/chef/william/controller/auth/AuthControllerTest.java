@@ -45,9 +45,10 @@ class AuthControllerTest {
                 .status("PENDING_EMAIL_VERIFICATION")
                 .build();
 
-        when(authService.register(any(RegisterUserRequest.class))).thenReturn(response);
+        when(authService.register(any(RegisterUserRequest.class), any(String.class))).thenReturn(response);
 
         mockMvc.perform(post("/api/auth/register")
+                        .header("Idempotency-Key", "idem-1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -64,6 +65,7 @@ class AuthControllerTest {
     @Test
     void registerShouldReturnValidationErrorShapeForInvalidPayload() throws Exception {
         mockMvc.perform(post("/api/auth/register")
+                        .header("Idempotency-Key", "idem-1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -82,7 +84,7 @@ class AuthControllerTest {
 
     @Test
     void registerShouldReturnConflictWhenDuplicateUser() throws Exception {
-        when(authService.register(any(RegisterUserRequest.class)))
+        when(authService.register(any(RegisterUserRequest.class), any(String.class)))
                 .thenThrow(new DuplicateResourceException("User", "email", "chef@example.com"));
 
         RegisterUserRequest request = new RegisterUserRequest();
@@ -91,9 +93,26 @@ class AuthControllerTest {
         request.setPassword("Password123!");
 
         mockMvc.perform(post("/api/auth/register")
+                        .header("Idempotency-Key", "idem-1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.status").value(409));
     }
+
+    @Test
+    void registerShouldReturnBadRequestWhenIdempotencyKeyMissing() throws Exception {
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "chef@example.com",
+                                  "userName": "chef",
+                                  "password": "Password123!"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Idempotency-Key header is required for registration requests"));
+    }
+
 }
