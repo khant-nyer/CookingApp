@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.LocalDateTime;
+import java.util.Locale;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -74,10 +75,7 @@ public class GlobalExceptionHandler {
                 : ex.getMessage();
         log.error("Data integrity violation: {}", detailedMessage);
 
-        String clientMessage = "Data conflict detected. Please verify unique fields and constraints.";
-        if (detailedMessage != null && detailedMessage.toLowerCase().contains("version")) {
-            clientMessage = "Recipe version already exists. Please use a unique version.";
-        }
+        String clientMessage = buildConflictMessage(detailedMessage);
 
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.CONFLICT.value(),
@@ -139,6 +137,28 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(errorResponse);
+    }
+
+    private String buildConflictMessage(String detailedMessage) {
+        if (detailedMessage == null || detailedMessage.isBlank()) {
+            return "Data conflict detected. Please verify unique fields and constraints.";
+        }
+
+        String normalized = detailedMessage.toLowerCase(Locale.ROOT);
+        if (normalized.contains("version")) {
+            return "Recipe version already exists. Please use a unique version.";
+        }
+        if (normalized.contains("food") && normalized.contains("name")) {
+            return "Food name already exists. Please use a unique name.";
+        }
+        if (normalized.contains("ingredient") && normalized.contains("name")) {
+            return "Ingredient name already exists. Please use a unique name.";
+        }
+        if (normalized.contains("user") && normalized.contains("email")) {
+            return "User email already exists. Please use a different email.";
+        }
+
+        return "Data conflict detected. Please verify unique fields and constraints.";
     }
 
 

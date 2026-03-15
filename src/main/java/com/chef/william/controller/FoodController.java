@@ -5,11 +5,12 @@ import com.chef.william.dto.FoodRecipeStatusDTO;
 import com.chef.william.service.FoodService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/foods")
@@ -29,8 +30,8 @@ public class FoodController {
     }
 
     @GetMapping
-    public ResponseEntity<List<FoodDTO>> getAll() {
-        return ResponseEntity.ok(foodService.getAllFoods());
+    public ResponseEntity<Page<FoodDTO>> getAll(Pageable pageable) {
+        return ResponseEntity.ok(foodService.getAllFoods(pageable));
     }
 
     @PutMapping("/{id}")

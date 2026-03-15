@@ -13,8 +13,12 @@ import java.util.List;
 public interface RecipeRepository extends JpaRepository<Recipe, Long> {
     int countByFoodId(Long foodId);
 
+    boolean existsByFoodId(Long foodId);
+
+    List<Recipe> findByFoodId(Long foodId);
+
     boolean existsByVersion(String version);
 
-    @Query("SELECT r.food.id, COUNT(r) FROM Recipe r WHERE r.food.id IN :foodIds GROUP BY r.food.id")
-    List<Object[]> countByFoodIds(@Param("foodIds") Collection<Long> foodIds);
+    @Query("SELECT r.food.id as foodId, COUNT(r) as recipeCount FROM Recipe r WHERE r.food.id IN :foodIds GROUP BY r.food.id")
+    List<FoodRecipeCountProjection> countByFoodIds(@Param("foodIds") Collection<Long> foodIds);
 }

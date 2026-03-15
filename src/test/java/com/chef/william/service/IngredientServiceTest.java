@@ -15,8 +15,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -126,6 +130,27 @@ class IngredientServiceTest {
         assertEquals("https://img.example/salt.jpg", dto.getImageUrl());
     }
 
+
+    @Test
+    void getAllIngredientsShouldReturnMappedPage() {
+        Ingredient ingredient = new Ingredient();
+        ingredient.setId(7L);
+        ingredient.setName("Salt");
+
+        IngredientDTO mapped = new IngredientDTO();
+        mapped.setId(7L);
+        mapped.setName("Salt");
+
+        when(ingredientRepository.findAll(PageRequest.of(0, 10)))
+                .thenReturn(new PageImpl<>(List.of(ingredient), PageRequest.of(0, 10), 1));
+        when(ingredientMapper.toDto(ingredient)).thenReturn(mapped);
+
+        Page<IngredientDTO> result = ingredientService.getAllIngredients(PageRequest.of(0, 10));
+
+        assertEquals(1, result.getTotalElements());
+        assertEquals("Salt", result.getContent().getFirst().getName());
+    }
+
     @Test
     void getIngredientByIdThrowsWhenServingUnitIsUnsupported() {
         Ingredient ingredient = new Ingredient();
@@ -178,6 +203,28 @@ class IngredientServiceTest {
 
         assertEquals(2, result.size());
         verify(ingredientRepository).saveAll(any());
+    }
+
+
+    @Test
+    void createIngredientsShouldThrowWhenPayloadContainsNullItem() {
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> ingredientService.createIngredients(Arrays.asList((IngredientDTO) null)));
+
+        assertEquals("Ingredient payload item must not be null", ex.getMessage());
+    }
+
+    @Test
+    void createIngredientsShouldThrowWhenNameIsBlank() {
+        IngredientDTO dto = new IngredientDTO();
+        dto.setName("   ");
+        dto.setServingAmount(100.0);
+        dto.setServingUnit(Unit.G);
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> ingredientService.createIngredients(List.of(dto)));
+
+        assertEquals("Ingredient name is required in bulk payload", ex.getMessage());
     }
 
     @Test
