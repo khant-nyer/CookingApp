@@ -3,6 +3,7 @@ package com.chef.william.service;
 import com.chef.william.config.security.CognitoProperties;
 import com.chef.william.dto.auth.RegisterUserRequest;
 import com.chef.william.dto.auth.RegisterUserResponse;
+import com.chef.william.exception.BusinessException;
 import com.chef.william.exception.DuplicateResourceException;
 import com.chef.william.repository.UserRepository;
 import com.chef.william.service.auth.AuthService;
@@ -123,7 +124,7 @@ class AuthServiceTest {
                 .message("Client secret mismatch")
                 .build());
 
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> authService.register(request));
+        BusinessException exception = assertThrows(BusinessException.class, () -> authService.register(request));
 
         assertEquals(
                 "Cognito authorization failed during sign-up: Client secret mismatch. If your app client has a secret, set security.cognito.app-client-secret in backend config.",
@@ -145,7 +146,7 @@ class AuthServiceTest {
                 .message("Unable to verify secret hash for client")
                 .build());
 
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> authService.register(request));
+        BusinessException exception = assertThrows(BusinessException.class, () -> authService.register(request));
 
         assertEquals(
                 "Cognito authorization failed during sign-up: Unable to verify secret hash for client. Check security.cognito.app-client-secret and app client settings in Cognito.",

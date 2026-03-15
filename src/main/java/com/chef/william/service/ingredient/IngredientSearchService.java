@@ -33,7 +33,7 @@ public class IngredientSearchService {
     @Transactional(readOnly = true)
     public List<IngredientDTO> searchByNutrient(String nutrientStr, Double minValue) {
         if (nutrientStr == null || nutrientStr.trim().isEmpty()) {
-            throw new IllegalArgumentException("Nutrient parameter is required");
+            throw new BusinessException("Nutrient parameter is required");
         }
 
         Nutrients nutrient;

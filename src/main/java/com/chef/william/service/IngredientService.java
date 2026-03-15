@@ -38,6 +38,9 @@ public class IngredientService {
         validateBulkCreatePayload(dtos);
         List<Ingredient> ingredients = dtos.stream()
                 .map(dto -> {
+                    if (dto == null) {
+                        throw new BusinessException("Ingredient payload item must not be null");
+                    }
                     Ingredient ingredient = new Ingredient();
                     ingredientMapper.updateEntityFromDto(dto, ingredient);
                     return ingredient;
@@ -98,8 +101,20 @@ public class IngredientService {
     }
 
     private void validateBulkCreatePayload(List<IngredientDTO> dtos) {
+        if (dtos == null || dtos.isEmpty()) {
+            throw new BusinessException("Ingredient bulk payload must not be empty");
+        }
+
         Set<String> normalizedNames = new HashSet<>();
         for (IngredientDTO dto : dtos) {
+            if (dto == null) {
+                throw new BusinessException("Ingredient payload item must not be null");
+            }
+
+            if (dto.getName() == null || dto.getName().trim().isEmpty()) {
+                throw new BusinessException("Ingredient name is required in bulk payload");
+            }
+
             String normalized = dto.getName().trim().toLowerCase();
             if (!normalizedNames.add(normalized)) {
                 throw new BusinessException("Duplicate ingredient name in bulk payload: " + dto.getName());
@@ -109,6 +124,7 @@ public class IngredientService {
         Set<String> existingNames = ingredientRepository.findExistingNormalizedNames(normalizedNames);
         if (!existingNames.isEmpty()) {
             String duplicated = dtos.stream()
+                    .filter(dto -> dto != null && dto.getName() != null)
                     .map(dto -> dto.getName().trim())
                     .filter(name -> existingNames.contains(name.toLowerCase()))
                     .findFirst()

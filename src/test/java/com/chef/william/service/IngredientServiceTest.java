@@ -17,6 +17,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -178,6 +179,28 @@ class IngredientServiceTest {
 
         assertEquals(2, result.size());
         verify(ingredientRepository).saveAll(any());
+    }
+
+
+    @Test
+    void createIngredientsShouldThrowWhenPayloadContainsNullItem() {
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> ingredientService.createIngredients(Arrays.asList((IngredientDTO) null)));
+
+        assertEquals("Ingredient payload item must not be null", ex.getMessage());
+    }
+
+    @Test
+    void createIngredientsShouldThrowWhenNameIsBlank() {
+        IngredientDTO dto = new IngredientDTO();
+        dto.setName("   ");
+        dto.setServingAmount(100.0);
+        dto.setServingUnit(Unit.G);
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> ingredientService.createIngredients(List.of(dto)));
+
+        assertEquals("Ingredient name is required in bulk payload", ex.getMessage());
     }
 
     @Test
