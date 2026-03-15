@@ -58,12 +58,12 @@ public class AuthService {
         String requestHash = calculateRequestHash(request);
         LocalDateTime now = LocalDateTime.now();
 
-        RegistrationIdempotencyRecord record = getOrCreateRecord(normalizedKey, requestHash, now);
+        RegistrationIdempotencyRecord record = idempotencyRepository.findByIdempotencyKey(normalizedKey)
+                .map(existing -> handleExistingRecord(existing, requestHash, now))
+                .orElseGet(() -> createInProgressRecord(normalizedKey, requestHash, now));
+
         if (record.getStatus() == RegistrationIdempotencyStatus.COMPLETED) {
             return toResponse(record);
-        }
-        if (record.getStatus() == RegistrationIdempotencyStatus.IN_PROGRESS) {
-            throw new BusinessException("Registration request is already being processed for this idempotency key");
         }
 
         try {
@@ -77,12 +77,6 @@ public class AuthService {
         }
     }
 
-    private RegistrationIdempotencyRecord getOrCreateRecord(String idempotencyKey, String requestHash, LocalDateTime now) {
-        return idempotencyRepository.findByIdempotencyKey(idempotencyKey)
-                .map(existing -> handleExistingRecord(existing, requestHash, now))
-                .orElseGet(() -> createInProgressRecord(idempotencyKey, requestHash, now));
-    }
-
     private RegistrationIdempotencyRecord handleExistingRecord(RegistrationIdempotencyRecord existing,
                                                                 String requestHash,
                                                                 LocalDateTime now) {
@@ -93,6 +87,10 @@ public class AuthService {
 
         if (!existing.getRequestHash().equals(requestHash)) {
             throw new BusinessException("Idempotency key was already used with a different registration payload");
+        }
+
+        if (existing.getStatus() == RegistrationIdempotencyStatus.IN_PROGRESS) {
+            throw new BusinessException("Registration request is already being processed for this idempotency key");
         }
 
         return existing;
