@@ -10,10 +10,11 @@ import com.chef.william.repository.RecipeRepository;
 import com.chef.william.service.mapper.RecipeMapper;
 import com.chef.william.service.recipe.RecipeMergeService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -57,10 +58,9 @@ public class RecipeService {
     }
 
     @Transactional(readOnly = true)
-    public List<RecipeDTO> getAllRecipes() {
-        return recipeRepository.findAll().stream()
-                .map(recipeMapper::toDto)
-                .toList();
+    public Page<RecipeDTO> getAllRecipes(Pageable pageable) {
+        return recipeRepository.findAll(pageable)
+                .map(recipeMapper::toDto);
     }
 
     @Transactional

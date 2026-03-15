@@ -8,6 +8,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -55,9 +57,8 @@ public class IngredientController {
 
     // READ: GET /api/ingredients (all)
     @GetMapping
-    public ResponseEntity<List<IngredientDTO>> getAllIngredients() {
-        List<IngredientDTO> ingredients = ingredientService.getAllIngredients();
-        return ResponseEntity.ok(ingredients);
+    public ResponseEntity<Page<IngredientDTO>> getAllIngredients(Pageable pageable) {
+        return ResponseEntity.ok(ingredientService.getAllIngredients(pageable));
     }
 
     // UPDATE: PUT /api/ingredients/{id}
