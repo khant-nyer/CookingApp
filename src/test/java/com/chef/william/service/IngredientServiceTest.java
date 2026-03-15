@@ -17,6 +17,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -184,7 +185,7 @@ class IngredientServiceTest {
     @Test
     void createIngredientsShouldThrowWhenPayloadContainsNullItem() {
         BusinessException ex = assertThrows(BusinessException.class,
-                () -> ingredientService.createIngredients(List.of((IngredientDTO) null)));
+                () -> ingredientService.createIngredients(Arrays.asList((IngredientDTO) null)));
 
         assertEquals("Ingredient payload item must not be null", ex.getMessage());
     }

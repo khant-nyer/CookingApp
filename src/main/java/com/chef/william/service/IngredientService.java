@@ -38,6 +38,9 @@ public class IngredientService {
         validateBulkCreatePayload(dtos);
         List<Ingredient> ingredients = dtos.stream()
                 .map(dto -> {
+                    if (dto == null) {
+                        throw new BusinessException("Ingredient payload item must not be null");
+                    }
                     Ingredient ingredient = new Ingredient();
                     ingredientMapper.updateEntityFromDto(dto, ingredient);
                     return ingredient;
