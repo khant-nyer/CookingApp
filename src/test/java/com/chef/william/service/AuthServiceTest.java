@@ -18,11 +18,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
-import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminDeleteUserRequest;
-import software.amazon.awssdk.services.cognitoidentityprovider.model.InternalErrorException;
-import software.amazon.awssdk.services.cognitoidentityprovider.model.NotAuthorizedException;
-import software.amazon.awssdk.services.cognitoidentityprovider.model.SignUpRequest;
-import software.amazon.awssdk.services.cognitoidentityprovider.model.SignUpResponse;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.*;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -97,7 +93,7 @@ class AuthServiceTest {
         ArgumentCaptor<SignUpRequest> signUpCaptor = ArgumentCaptor.forClass(SignUpRequest.class);
         verify(cognitoClient).signUp(signUpCaptor.capture());
         Map<String, String> attributesByName = signUpCaptor.getValue().userAttributes().stream()
-                .collect(Collectors.toMap(attribute -> attribute.name(), attribute -> attribute.value()));
+                .collect(Collectors.toMap(AttributeType::name, AttributeType::value));
         assertEquals("chef@example.com", attributesByName.get("email"));
         assertEquals("chef", attributesByName.get("preferred_username"));
     }
