@@ -8,6 +8,8 @@ import com.chef.william.repository.IngredientRepository;
 import com.chef.william.service.ingredient.IngredientSearchService;
 import com.chef.william.service.mapper.IngredientMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -65,10 +67,9 @@ public class IngredientService {
     }
 
     @Transactional(readOnly = true)
-    public List<IngredientDTO> getAllIngredients() {
-        return ingredientRepository.findAll().stream()
-                .map(ingredientMapper::toDto)
-                .toList();
+    public Page<IngredientDTO> getAllIngredients(Pageable pageable) {
+        return ingredientRepository.findAll(pageable)
+                .map(ingredientMapper::toDto);
     }
 
     @Transactional
@@ -97,8 +98,20 @@ public class IngredientService {
     }
 
     private void validateBulkCreatePayload(List<IngredientDTO> dtos) {
+        if (dtos == null || dtos.isEmpty()) {
+            throw new BusinessException("Ingredient bulk payload must not be empty");
+        }
+
         Set<String> normalizedNames = new HashSet<>();
         for (IngredientDTO dto : dtos) {
+            if (dto == null) {
+                throw new BusinessException("Ingredient payload item must not be null");
+            }
+
+            if (dto.getName() == null || dto.getName().trim().isEmpty()) {
+                throw new BusinessException("Ingredient name is required in bulk payload");
+            }
+
             String normalized = dto.getName().trim().toLowerCase();
             if (!normalizedNames.add(normalized)) {
                 throw new BusinessException("Duplicate ingredient name in bulk payload: " + dto.getName());
@@ -108,6 +121,7 @@ public class IngredientService {
         Set<String> existingNames = ingredientRepository.findExistingNormalizedNames(normalizedNames);
         if (!existingNames.isEmpty()) {
             String duplicated = dtos.stream()
+                    .filter(dto -> dto != null && dto.getName() != null)
                     .map(dto -> dto.getName().trim())
                     .filter(name -> existingNames.contains(name.toLowerCase()))
                     .findFirst()

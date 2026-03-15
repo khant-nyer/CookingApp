@@ -3,6 +3,7 @@ package com.chef.william.service.auth;
 import com.chef.william.config.security.CognitoProperties;
 import com.chef.william.dto.auth.RegisterUserRequest;
 import com.chef.william.dto.auth.RegisterUserResponse;
+import com.chef.william.exception.BusinessException;
 import com.chef.william.exception.DuplicateResourceException;
 import com.chef.william.exception.auth.CognitoRegistrationException;
 import com.chef.william.model.User;
@@ -69,9 +70,9 @@ public class AuthService {
         } catch (UsernameExistsException ex) {
             throw new DuplicateResourceException("User", "email", request.getEmail());
         } catch (InvalidPasswordException | InvalidParameterException ex) {
-            throw new IllegalArgumentException(ex.getMessage());
+            throw new BusinessException(ex.getMessage());
         } catch (NotAuthorizedException ex) {
-            throw new IllegalArgumentException(buildAuthorizationFailureMessage(ex));
+            throw new BusinessException(buildAuthorizationFailureMessage(ex));
         } catch (CognitoIdentityProviderException ex) {
             String detail = ex.awsErrorDetails() != null ? ex.awsErrorDetails().errorMessage() : ex.getMessage();
             throw new CognitoRegistrationException("Failed to register user with Cognito: " + detail, ex);

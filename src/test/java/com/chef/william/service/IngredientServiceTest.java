@@ -180,6 +180,28 @@ class IngredientServiceTest {
         verify(ingredientRepository).saveAll(any());
     }
 
+
+    @Test
+    void createIngredientsShouldThrowWhenPayloadContainsNullItem() {
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> ingredientService.createIngredients(List.of((IngredientDTO) null)));
+
+        assertEquals("Ingredient payload item must not be null", ex.getMessage());
+    }
+
+    @Test
+    void createIngredientsShouldThrowWhenNameIsBlank() {
+        IngredientDTO dto = new IngredientDTO();
+        dto.setName("   ");
+        dto.setServingAmount(100.0);
+        dto.setServingUnit(Unit.G);
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> ingredientService.createIngredients(List.of(dto)));
+
+        assertEquals("Ingredient name is required in bulk payload", ex.getMessage());
+    }
+
     @Test
     void createIngredientsShouldThrowWhenAnyNameAlreadyExists() {
         IngredientDTO dto = new IngredientDTO();
