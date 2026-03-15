@@ -8,6 +8,8 @@ import com.chef.william.repository.IngredientRepository;
 import com.chef.william.service.ingredient.IngredientSearchService;
 import com.chef.william.service.mapper.IngredientMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -65,10 +67,9 @@ public class IngredientService {
     }
 
     @Transactional(readOnly = true)
-    public List<IngredientDTO> getAllIngredients() {
-        return ingredientRepository.findAll().stream()
-                .map(ingredientMapper::toDto)
-                .toList();
+    public Page<IngredientDTO> getAllIngredients(Pageable pageable) {
+        return ingredientRepository.findAll(pageable)
+                .map(ingredientMapper::toDto);
     }
 
     @Transactional
