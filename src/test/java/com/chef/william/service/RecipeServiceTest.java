@@ -14,10 +14,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
 import java.util.List;
 import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -104,4 +108,25 @@ class RecipeServiceTest {
         assertThrows(DuplicateResourceException.class, () -> recipeService.updateRecipe(1L, update));
         verify(recipeRepository, never()).save(any());
     }
+
+    @Test
+    void getAllRecipesShouldReturnMappedPage() {
+        Recipe recipe = new Recipe();
+        recipe.setId(11L);
+        recipe.setVersion("v1");
+
+        RecipeDTO dto = new RecipeDTO();
+        dto.setId(11L);
+        dto.setVersion("v1");
+
+        when(recipeRepository.findAll(PageRequest.of(0, 5)))
+                .thenReturn(new PageImpl<>(List.of(recipe), PageRequest.of(0, 5), 1));
+        when(recipeMapper.toDto(recipe)).thenReturn(dto);
+
+        Page<RecipeDTO> result = recipeService.getAllRecipes(PageRequest.of(0, 5));
+
+        assertEquals(1, result.getTotalElements());
+        assertEquals("v1", result.getContent().getFirst().getVersion());
+    }
+
 }

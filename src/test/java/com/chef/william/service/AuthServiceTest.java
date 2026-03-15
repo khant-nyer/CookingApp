@@ -5,6 +5,7 @@ import com.chef.william.dto.auth.RegisterUserRequest;
 import com.chef.william.dto.auth.RegisterUserResponse;
 import com.chef.william.exception.BusinessException;
 import com.chef.william.exception.DuplicateResourceException;
+import com.chef.william.exception.auth.CognitoRegistrationException;
 import com.chef.william.repository.UserRepository;
 import com.chef.william.service.auth.AuthService;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,7 +15,9 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminDeleteUserRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.NotAuthorizedException;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.InternalErrorException;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.SignUpRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.SignUpResponse;
 
@@ -26,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -165,4 +169,60 @@ class AuthServiceTest {
 
         assertThrows(DuplicateResourceException.class, () -> authService.register(request));
     }
+
+    @Test
+    void registerShouldRollbackCognitoUserWhenDatabaseSaveFails() {
+        RegisterUserRequest request = new RegisterUserRequest();
+        request.setEmail("chef@example.com");
+        request.setUserName("chef");
+        request.setPassword("MyPassword123!");
+
+        when(userRepository.findByEmail("chef@example.com")).thenReturn(Optional.empty());
+        when(cognitoClient.signUp(any(SignUpRequest.class))).thenReturn(SignUpResponse.builder()
+                .userSub("sub-123")
+                .userConfirmed(false)
+                .build());
+        when(userRepository.save(any())).thenThrow(new RuntimeException("db down"));
+
+        assertThrows(CognitoRegistrationException.class, () -> authService.register(request));
+
+        ArgumentCaptor<AdminDeleteUserRequest> deleteCaptor = ArgumentCaptor.forClass(AdminDeleteUserRequest.class);
+        verify(cognitoClient).adminDeleteUser(deleteCaptor.capture());
+        assertEquals("pool-id", deleteCaptor.getValue().userPoolId());
+        assertEquals("chef@example.com", deleteCaptor.getValue().username());
+    }
+
+    @Test
+    void registerShouldStillThrowWhenRollbackFails() {
+        RegisterUserRequest request = new RegisterUserRequest();
+        request.setEmail("chef@example.com");
+        request.setUserName("chef");
+        request.setPassword("MyPassword123!");
+
+        when(userRepository.findByEmail("chef@example.com")).thenReturn(Optional.empty());
+        when(cognitoClient.signUp(any(SignUpRequest.class))).thenReturn(SignUpResponse.builder()
+                .userSub("sub-123")
+                .userConfirmed(false)
+                .build());
+        when(userRepository.save(any())).thenThrow(new RuntimeException("db down"));
+        when(cognitoClient.adminDeleteUser(any(AdminDeleteUserRequest.class)))
+                .thenThrow(InternalErrorException.builder().message("rollback failed").build());
+
+        assertThrows(CognitoRegistrationException.class, () -> authService.register(request));
+        verify(cognitoClient).adminDeleteUser(any(AdminDeleteUserRequest.class));
+    }
+
+    @Test
+    void registerShouldNotCallCognitoWhenEmailAlreadyExistsInDb() {
+        RegisterUserRequest request = new RegisterUserRequest();
+        request.setEmail("chef@example.com");
+        request.setUserName("chef");
+        request.setPassword("MyPassword123!");
+
+        when(userRepository.findByEmail("chef@example.com")).thenReturn(Optional.of(new com.chef.william.model.User()));
+
+        assertThrows(DuplicateResourceException.class, () -> authService.register(request));
+        verify(cognitoClient, never()).signUp(any(SignUpRequest.class));
+    }
+
 }

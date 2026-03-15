@@ -9,9 +9,11 @@ import com.chef.william.exception.auth.CognitoRegistrationException;
 import com.chef.william.model.User;
 import com.chef.william.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminDeleteUserRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AttributeType;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.CognitoIdentityProviderException;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.InvalidParameterException;
@@ -26,6 +28,7 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -84,7 +87,14 @@ public class AuthService {
         user.setProfileImageUrl(request.getProfileImageUrl());
         user.setCognitoSub(signUpResponse.userSub());
 
-        User saved = userRepository.save(user);
+        User saved;
+        try {
+            saved = userRepository.save(user);
+        } catch (RuntimeException ex) {
+            rollbackCognitoRegistration(request.getEmail());
+            throw new CognitoRegistrationException(
+                    "User was created in Cognito but failed to persist in local database", ex);
+        }
 
         return RegisterUserResponse.builder()
                 .id(saved.getId())
@@ -94,6 +104,19 @@ public class AuthService {
                 .cognitoSub(saved.getCognitoSub())
                 .status(signUpResponse.userConfirmed() ? "CONFIRMED" : "PENDING_EMAIL_VERIFICATION")
                 .build();
+    }
+
+
+    private void rollbackCognitoRegistration(String email) {
+        try {
+            cognitoClient.adminDeleteUser(AdminDeleteUserRequest.builder()
+                    .userPoolId(cognitoProperties.getUserPoolId())
+                    .username(email)
+                    .build());
+            log.warn("Rolled back Cognito user after local persistence failure for email={}", email);
+        } catch (CognitoIdentityProviderException rollbackEx) {
+            log.error("Failed to rollback Cognito user for email={}", email, rollbackEx);
+        }
     }
 
     private String calculateSecretHash(String username, String clientId, String clientSecret) {

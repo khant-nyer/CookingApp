@@ -15,6 +15,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -125,6 +128,27 @@ class IngredientServiceTest {
 
         assertEquals(Unit.G, dto.getServingUnit());
         assertEquals("https://img.example/salt.jpg", dto.getImageUrl());
+    }
+
+
+    @Test
+    void getAllIngredientsShouldReturnMappedPage() {
+        Ingredient ingredient = new Ingredient();
+        ingredient.setId(7L);
+        ingredient.setName("Salt");
+
+        IngredientDTO mapped = new IngredientDTO();
+        mapped.setId(7L);
+        mapped.setName("Salt");
+
+        when(ingredientRepository.findAll(PageRequest.of(0, 10)))
+                .thenReturn(new PageImpl<>(List.of(ingredient), PageRequest.of(0, 10), 1));
+        when(ingredientMapper.toDto(ingredient)).thenReturn(mapped);
+
+        Page<IngredientDTO> result = ingredientService.getAllIngredients(PageRequest.of(0, 10));
+
+        assertEquals(1, result.getTotalElements());
+        assertEquals("Salt", result.getContent().getFirst().getName());
     }
 
     @Test
