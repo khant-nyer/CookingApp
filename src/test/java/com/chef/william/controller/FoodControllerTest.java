@@ -2,14 +2,14 @@ package com.chef.william.controller;
 
 import com.chef.william.dto.FoodDTO;
 import com.chef.william.service.FoodService;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.List;
 
@@ -19,19 +19,18 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@AutoConfigureMockMvc(addFilters = false)
-@WebMvcTest(FoodController.class)
+@ExtendWith(MockitoExtension.class)
 class FoodControllerTest {
 
-    @Autowired
+    @Mock
+    private FoodService foodService;
+
     private MockMvc mockMvc;
 
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @SuppressWarnings("unused")
-    @MockBean
-    private FoodService foodService;
+    @BeforeEach
+    void setUp() {
+        mockMvc = MockMvcBuilders.standaloneSetup(new FoodController(foodService)).build();
+    }
 
     @Test
     void createFoodShouldStillWorkWithoutRecipes() throws Exception {
