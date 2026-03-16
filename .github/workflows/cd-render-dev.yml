@@ -6,9 +6,14 @@ on:
       - dev
   workflow_dispatch:
 
+concurrency:
+  group: render-dev-deploy
+  cancel-in-progress: true
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
@@ -30,8 +35,13 @@ jobs:
         run: |
           if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
             echo "RENDER_DEPLOY_HOOK_URL secret is not set."
+            echo "Add it in GitHub: Settings > Secrets and variables > Actions."
             exit 1
           fi
 
-          curl --fail --show-error --silent --request POST "$RENDER_DEPLOY_HOOK_URL"
+          curl --fail --show-error --silent \
+            --retry 3 \
+            --retry-delay 2 \
+            --request POST "$RENDER_DEPLOY_HOOK_URL"
+
           echo "Render deploy triggered for dev branch."
