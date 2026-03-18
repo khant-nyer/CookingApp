@@ -6,7 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "user",
+@Table(name = "users",
         uniqueConstraints = {
                 @UniqueConstraint(name = "uk_user_cognito_sub", columnNames = "cognito_sub"),
                 @UniqueConstraint(name = "uk_user_email", columnNames = "email")
