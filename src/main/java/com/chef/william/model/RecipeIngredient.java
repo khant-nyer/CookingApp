@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.BatchSize;
 
 @Entity
 @Table(name = "recipe_ingredients",
@@ -28,6 +29,7 @@ public class RecipeIngredient {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ingredient_id", nullable = false)
+    @BatchSize(size = 100)
     private Ingredient ingredient;
 
     @Column(nullable = false)
