@@ -119,8 +119,9 @@ class RecipeServiceTest {
         dto.setId(11L);
         dto.setVersion("v1");
 
-        when(recipeRepository.findAll(PageRequest.of(0, 5)))
-                .thenReturn(new PageImpl<>(List.of(recipe), PageRequest.of(0, 5), 1));
+        when(recipeRepository.findAllIds(PageRequest.of(0, 5)))
+                .thenReturn(new PageImpl<>(List.of(11L), PageRequest.of(0, 5), 1));
+        when(recipeRepository.findDetailedByIdIn(List.of(11L))).thenReturn(List.of(recipe));
         when(recipeMapper.toDto(recipe)).thenReturn(dto);
 
         Page<RecipeDTO> result = recipeService.getAllRecipes(PageRequest.of(0, 5));
