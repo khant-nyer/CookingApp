@@ -11,9 +11,14 @@ import com.chef.william.service.mapper.RecipeMapper;
 import com.chef.william.service.recipe.RecipeMergeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 
 @Service
@@ -52,15 +57,30 @@ public class RecipeService {
 
     @Transactional(readOnly = true)
     public RecipeDTO getRecipeById(Long id) {
-        Recipe recipe = recipeRepository.findById(id)
+        Recipe recipe = recipeRepository.findDetailedById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Recipe not found with id: " + id));
         return recipeMapper.toDto(recipe);
     }
 
     @Transactional(readOnly = true)
     public Page<RecipeDTO> getAllRecipes(Pageable pageable) {
-        return recipeRepository.findAll(pageable)
-                .map(recipeMapper::toDto);
+        Page<Long> idPage = recipeRepository.findAllIds(pageable);
+        List<Long> ids = idPage.getContent();
+
+        if (ids.isEmpty()) {
+            return Page.empty(pageable);
+        }
+
+        Map<Long, Recipe> recipesById = new LinkedHashMap<>();
+        recipeRepository.findDetailedByIdIn(ids)
+                .forEach(recipe -> recipesById.put(recipe.getId(), recipe));
+
+        List<RecipeDTO> ordered = ids.stream()
+                .map(recipesById::get)
+                .map(recipeMapper::toDto)
+                .toList();
+
+        return new PageImpl<>(ordered, pageable, idPage.getTotalElements());
     }
 
     @Transactional
