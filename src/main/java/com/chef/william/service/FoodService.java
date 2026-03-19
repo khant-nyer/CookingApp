@@ -111,7 +111,7 @@ public class FoodService {
     }
 
     private FoodDTO mapToDto(Food food) {
-        List<RecipeDTO> recipes = recipeRepository.findByFoodId(food.getId()).stream()
+        List<RecipeDTO> recipes = recipeRepository.findDetailedByFoodId(food.getId()).stream()
                 .map(recipeMapper::toDto)
                 .toList();
         return new FoodDTO(food.getId(), food.getName(), food.getCategory(), food.getImageUrl(), recipes.size(), recipes);
