@@ -22,6 +22,7 @@
         <java.version>21</java.version>
         <assertj.version>3.27.7</assertj.version>
         <aws.sdk.version>2.42.13</aws.sdk.version>
+        <jackson-2-bom.version>2.21.1</jackson-2-bom.version>
     </properties>
 
     <dependencyManagement>
@@ -97,6 +98,20 @@
             <artifactId>cognitoidentityprovider</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+        </dependency>
+
+        <!-- Swagger annotations (OpenAPI models + annotations) -->
+        <dependency>
+            <groupId>io.swagger.core.v3</groupId>
+            <artifactId>swagger-annotations-jakarta</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.swagger.core.v3</groupId>
+            <artifactId>swagger-models-jakarta</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>com.h2database</groupId>
