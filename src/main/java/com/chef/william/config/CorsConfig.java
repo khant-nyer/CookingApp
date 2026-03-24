@@ -1,7 +1,7 @@
 package com.chef.william.config;
 
-import org.springframework.context.annotation.Configuration;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -12,8 +12,11 @@ public class CorsConfig implements WebMvcConfigurer {
 
     private final List<String> allowedOrigins;
 
-    public CorsConfig(@Value("${app.cors.allowed-origins:https://cookingapp-frontend.onrender.com}") List<String> allowedOrigins) {
-        this.allowedOrigins = allowedOrigins;
+    public CorsConfig(@Value("${app.cors.allowed-origins:}") List<String> allowedOrigins) {
+        this.allowedOrigins = allowedOrigins.stream()
+                .map(String::trim)
+                .filter(origin -> !origin.isEmpty())
+                .toList();
     }
 
     @Override
