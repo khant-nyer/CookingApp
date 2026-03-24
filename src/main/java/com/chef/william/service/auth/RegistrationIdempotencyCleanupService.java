@@ -15,7 +15,7 @@ public class RegistrationIdempotencyCleanupService {
 
     private final RegistrationIdempotencyRepository idempotencyRepository;
 
-    @Scheduled(fixedDelayString = "${app.idempotency.registration.cleanup-interval-ms:300000}")
+    @Scheduled(fixedDelayString = "${app.idempotency.registration.cleanup-interval-ms}")
     public void cleanupExpiredRecords() {
         long deleted = idempotencyRepository.deleteByExpiresAtBefore(LocalDateTime.now());
         if (deleted > 0) {

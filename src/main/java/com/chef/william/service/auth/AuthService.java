@@ -45,7 +45,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final RegistrationIdempotencyRepository idempotencyRepository;
 
-    @Value("${app.idempotency.registration.ttl-minutes:1440}")
+    @Value("${app.idempotency.registration.ttl-minutes}")
     private long idempotencyTtlMinutes;
 
     @Transactional

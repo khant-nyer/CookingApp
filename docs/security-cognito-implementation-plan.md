@@ -31,7 +31,7 @@ Login/logout stay on the frontend and are not handled by backend endpoints.
    - `security.cognito.userPoolId`
    - `security.cognito.appClientId`
    - derived issuer/JWKS URL
-3. Keep env-specific values in `application-dev.properties` and `application-prod.properties`.
+3. Keep env-specific values in dedicated `.env` files (for example, `.env.dev` and `.env.prod`) while using a single `application.properties`.
 
 ## Phase 3: Registration API
 1. Add endpoint `POST /api/auth/register`.
