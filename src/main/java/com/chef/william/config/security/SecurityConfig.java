@@ -18,6 +18,7 @@ public class SecurityConfig {
     private static final RequestMatcher PREFLIGHT_REQUEST_MATCHER = CorsUtils::isPreFlightRequest;
     private static final String[] PUBLIC_ENDPOINTS = {
             "/api/auth/register",
+            "/api/cronjob/ping",
             "/v3/api-docs/**",
             "/swagger-ui/**",
             "/swagger-ui.html"
