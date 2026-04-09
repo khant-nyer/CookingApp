@@ -49,4 +49,9 @@ public class FoodController {
     public ResponseEntity<FoodRecipeStatusDTO> recipeStatus(@PathVariable Long id) {
         return ResponseEntity.ok(foodService.getFoodRecipeStatus(id));
     }
+
+    @GetMapping("/ping")
+    public String ping() {
+        return "pong";
+    }
 }
