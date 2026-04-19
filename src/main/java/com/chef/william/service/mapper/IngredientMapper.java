@@ -87,6 +87,9 @@ public class IngredientMapper {
         dto.setCategory(entity.getCategory());
         dto.setDescription(entity.getDescription());
         dto.setImageUrl(entity.getImageUrl());
+        dto.setCreatedBy(entity.getCreatedBy());
+        dto.setUpdatedBy(entity.getUpdatedBy());
+        dto.setUpdatedAt(entity.getUpdatedAt());
         dto.setServingAmount(entity.getServingAmount());
 
         Unit servingUnit = Unit.fromAbbreviation(entity.getServingUnit());

@@ -9,6 +9,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -30,6 +31,10 @@ public class IngredientDTO {
 
     @Size(max = 1000, message = "Image URL must not exceed 1000 characters")
     private String imageUrl;
+
+    private String createdBy;
+    private String updatedBy;
+    private LocalDateTime updatedAt;
 
     @NotNull(message = "Serving amount is required")
     @Positive(message = "Serving amount must be positive")

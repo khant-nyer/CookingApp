@@ -7,6 +7,7 @@ import lombok.Setter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.BatchSize;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -36,6 +37,14 @@ public class Ingredient {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User user;
+
+    @Column(nullable = false, length = 120)
+    private String createdBy;
+
+    @Column(length = 120)
+    private String updatedBy;
+
+    private LocalDateTime updatedAt;
 
     // Base serving: All nutrition values are defined per this amount/unit
     @Column(nullable = false)
