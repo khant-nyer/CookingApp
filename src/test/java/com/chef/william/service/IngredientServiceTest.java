@@ -5,9 +5,11 @@ import com.chef.william.dto.NutritionDTO;
 import com.chef.william.exception.BusinessException;
 import com.chef.william.model.Ingredient;
 import com.chef.william.model.Nutrition;
+import com.chef.william.model.User;
 import com.chef.william.model.enums.Nutrients;
 import com.chef.william.model.enums.Unit;
 import com.chef.william.repository.IngredientRepository;
+import com.chef.william.service.auth.CurrentUserService;
 import com.chef.william.service.ingredient.IngredientSearchService;
 import com.chef.william.service.mapper.IngredientMapper;
 import org.junit.jupiter.api.Test;
@@ -43,6 +45,8 @@ class IngredientServiceTest {
 
     @Mock
     private IngredientSearchService ingredientSearchService;
+    @Mock
+    private CurrentUserService currentUserService;
 
 
     @InjectMocks
@@ -50,6 +54,8 @@ class IngredientServiceTest {
 
     @Test
     void updateIngredientMergesNutrientsByType() {
+        User user = new User();
+        user.setUserName("editor");
         Ingredient ingredient = new Ingredient();
         ingredient.setId(1L);
         ingredient.setName("Tomato");
@@ -86,6 +92,7 @@ class IngredientServiceTest {
 
         when(ingredientRepository.findById(1L)).thenReturn(Optional.of(ingredient));
         when(ingredientRepository.save(any(Ingredient.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(currentUserService.getRequiredCurrentUser()).thenReturn(user);
         when(ingredientMapper.toDto(any(Ingredient.class))).thenAnswer(invocation -> {
             Ingredient source = invocation.getArgument(0);
             IngredientDTO mapped = new IngredientDTO();
@@ -178,6 +185,8 @@ class IngredientServiceTest {
 
     @Test
     void createIngredientsShouldSaveAllInBatch() {
+        User user = new User();
+        user.setUserName("editor");
         IngredientDTO saltDto = new IngredientDTO();
         saltDto.setName("Salt");
         saltDto.setServingAmount(100.0);
@@ -190,6 +199,7 @@ class IngredientServiceTest {
 
         when(ingredientRepository.findExistingNormalizedNames(Set.of("salt", "pepper"))).thenReturn(Set.of());
         when(ingredientRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(currentUserService.getRequiredCurrentUser()).thenReturn(user);
         when(ingredientMapper.toDto(any(Ingredient.class))).thenAnswer(invocation -> {
             Ingredient source = invocation.getArgument(0);
             IngredientDTO mapped = new IngredientDTO();
