@@ -33,6 +33,10 @@ public class Ingredient {
     @Column(length = 1000)
     private String imageUrl;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
+
     // Base serving: All nutrition values are defined per this amount/unit
     @Column(nullable = false)
     private Double servingAmount = 100.0;  // e.g., 100.0
