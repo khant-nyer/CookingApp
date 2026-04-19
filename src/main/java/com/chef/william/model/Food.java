@@ -30,6 +30,10 @@ public class Food {
     @Column(length = 1000)
     private String imageUrl;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
+
     @OneToMany(mappedBy = "food", fetch = FetchType.LAZY)
     private List<Recipe> recipes = new ArrayList<>();
 }
