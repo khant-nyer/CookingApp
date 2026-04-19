@@ -20,9 +20,9 @@ public class RecipeMapper {
                 .description(recipe.getDescription())
                 .foodId(recipe.getFood() != null ? recipe.getFood().getId() : null)
                 .foodName(recipe.getFood() != null ? recipe.getFood().getName() : null)
-                .createdBy(recipe.getCreatedBy())
-                .updatedBy(recipe.getUpdatedBy())
-                .updatedAt(recipe.getUpdatedAt())
+                .createdBy(recipe.getUser() != null ? recipe.getUser().getUserName() : null)
+                .updatedBy(recipe.getUser() != null ? recipe.getUser().getUserName() : null)
+                .updatedAt(null)
                 .build();
 
         List<RecipeIngredientDTO> ingredientDTOs = recipe.getRecipeIngredients().stream()

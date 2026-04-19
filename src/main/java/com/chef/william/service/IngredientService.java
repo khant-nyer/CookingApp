@@ -35,7 +35,6 @@ public class IngredientService {
         Ingredient ingredient = new Ingredient();
         ingredientMapper.updateEntityFromDto(dto, ingredient);
         ingredient.setUser(currentUser);
-        ingredient.setCreatedBy(currentUser.getUserName());
         ingredient = ingredientRepository.save(ingredient);
         return ingredientMapper.toDto(ingredient);
     }
@@ -52,7 +51,6 @@ public class IngredientService {
                     Ingredient ingredient = new Ingredient();
                     ingredientMapper.updateEntityFromDto(dto, ingredient);
                     ingredient.setUser(currentUser);
-                    ingredient.setCreatedBy(currentUser.getUserName());
                     return ingredient;
                 })
                 .toList();
@@ -70,8 +68,6 @@ public class IngredientService {
 
         ingredientMapper.updateEntityFromDto(dto, ingredient);
         ingredient.setUser(currentUser);
-        ingredient.setUpdatedBy(currentUser.getUserName());
-        ingredient.setUpdatedAt(LocalDateTime.now());
         ingredient = ingredientRepository.save(ingredient);
         return ingredientMapper.toDto(ingredient);
     }

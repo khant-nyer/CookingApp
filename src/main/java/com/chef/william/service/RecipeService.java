@@ -41,7 +41,6 @@ public class RecipeService {
 
         Recipe recipe = new Recipe();
         populateScalars(recipe, recipeDTO, currentUser);
-        recipe.setCreatedBy(currentUser.getUserName());
         recipeMergeService.mergeIngredients(recipe, recipeDTO);
         recipeMergeService.mergeInstructions(recipe, recipeDTO);
         recipe = recipeRepository.save(recipe);
@@ -56,8 +55,6 @@ public class RecipeService {
 
         validateUniqueVersionForUpdate(recipe, recipeDTO.getVersion());
         populateScalars(recipe, recipeDTO, currentUser);
-        recipe.setUpdatedBy(currentUser.getUserName());
-        recipe.setUpdatedAt(LocalDateTime.now());
         recipeMergeService.mergeIngredients(recipe, recipeDTO);
         recipeMergeService.mergeInstructions(recipe, recipeDTO);
         recipe = recipeRepository.save(recipe);

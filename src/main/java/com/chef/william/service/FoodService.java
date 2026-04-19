@@ -44,7 +44,6 @@ public class FoodService {
 
         Food food = new Food();
         mapToEntity(dto, food, currentUser);
-        food.setCreatedBy(currentUser.getUserName());
         Food savedFood = foodRepository.save(food);
         createRecipeVersions(savedFood.getId(), dto.getRecipes());
         return mapToDto(savedFood);
@@ -62,8 +61,6 @@ public class FoodService {
         }
 
         mapToEntity(dto, food, currentUser);
-        food.setUpdatedBy(currentUser.getUserName());
-        food.setUpdatedAt(LocalDateTime.now());
         Food savedFood = foodRepository.save(food);
         createRecipeVersions(savedFood.getId(), dto.getRecipes());
         return mapToDto(savedFood);
@@ -129,9 +126,9 @@ public class FoodService {
                 food.getName(),
                 food.getCategory(),
                 food.getImageUrl(),
-                food.getCreatedBy(),
-                food.getUpdatedBy(),
-                food.getUpdatedAt(),
+                food.getUser() != null ? food.getUser().getUserName() : null,
+                food.getUser() != null ? food.getUser().getUserName() : null,
+                null,
                 recipes.size(),
                 recipes
         );
@@ -143,9 +140,9 @@ public class FoodService {
                 food.getName(),
                 food.getCategory(),
                 food.getImageUrl(),
-                food.getCreatedBy(),
-                food.getUpdatedBy(),
-                food.getUpdatedAt(),
+                food.getUser() != null ? food.getUser().getUserName() : null,
+                food.getUser() != null ? food.getUser().getUserName() : null,
+                null,
                 recipeCount,
                 List.of()
         );
