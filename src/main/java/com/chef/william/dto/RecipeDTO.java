@@ -9,6 +9,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -30,6 +31,12 @@ public class RecipeDTO {
     private Long foodId;
 
     private String foodName;
+
+    private String createdBy;
+
+    private String updatedBy;
+
+    private LocalDateTime updatedAt;
 
     @NotEmpty(message = "At least one ingredient is required")
     @Valid

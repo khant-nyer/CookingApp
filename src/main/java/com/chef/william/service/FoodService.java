@@ -7,8 +7,10 @@ import com.chef.william.exception.BusinessException;
 import com.chef.william.exception.DuplicateResourceException;
 import com.chef.william.exception.ResourceNotFoundException;
 import com.chef.william.model.Food;
+import com.chef.william.model.User;
 import com.chef.william.repository.FoodRepository;
 import com.chef.william.repository.RecipeRepository;
+import com.chef.william.service.auth.CurrentUserService;
 import com.chef.william.service.mapper.RecipeMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -17,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +32,7 @@ public class FoodService {
     private final RecipeService recipeService;
     private final RecipeRepository recipeRepository;
     private final RecipeMapper recipeMapper;
+    private final CurrentUserService currentUserService;
 
     @Transactional
     public FoodDTO createFood(FoodDTO dto) {
@@ -39,6 +43,7 @@ public class FoodService {
 
         Food food = new Food();
         mapToEntity(dto, food);
+        food.setUser(currentUserService.getRequiredCurrentUser());
         Food savedFood = foodRepository.save(food);
         createRecipeVersions(savedFood.getId(), dto.getRecipes());
         return mapToDto(savedFood);
@@ -55,6 +60,12 @@ public class FoodService {
         }
 
         mapToEntity(dto, food);
+        User actor = currentUserService.getRequiredCurrentUser();
+        if (food.getUser() == null) {
+            food.setUser(actor);
+        }
+        food.setUpdatedBy(actor);
+        food.setUpdatedAt(LocalDateTime.now());
         Food savedFood = foodRepository.save(food);
         createRecipeVersions(savedFood.getId(), dto.getRecipes());
         return mapToDto(savedFood);
@@ -114,11 +125,41 @@ public class FoodService {
         List<RecipeDTO> recipes = recipeRepository.findDetailedByFoodId(food.getId()).stream()
                 .map(recipeMapper::toDto)
                 .toList();
-        return new FoodDTO(food.getId(), food.getName(), food.getCategory(), food.getImageUrl(), recipes.size(), recipes);
+        FoodDTO dto = new FoodDTO();
+        dto.setId(food.getId());
+        dto.setName(food.getName());
+        dto.setCategory(food.getCategory());
+        dto.setImageUrl(food.getImageUrl());
+        dto.setCreatedBy(resolveActorName(food.getUser()));
+        dto.setUpdatedBy(resolveActorName(food.getUpdatedBy()));
+        dto.setUpdatedAt(food.getUpdatedAt());
+        dto.setRecipeCount(recipes.size());
+        dto.setRecipes(recipes);
+        return dto;
     }
 
     private FoodDTO mapToSummaryDto(Food food, int recipeCount) {
-        return new FoodDTO(food.getId(), food.getName(), food.getCategory(), food.getImageUrl(), recipeCount, List.of());
+        FoodDTO dto = new FoodDTO();
+        dto.setId(food.getId());
+        dto.setName(food.getName());
+        dto.setCategory(food.getCategory());
+        dto.setImageUrl(food.getImageUrl());
+        dto.setCreatedBy(resolveActorName(food.getUser()));
+        dto.setUpdatedBy(resolveActorName(food.getUpdatedBy()));
+        dto.setUpdatedAt(food.getUpdatedAt());
+        dto.setRecipeCount(recipeCount);
+        dto.setRecipes(List.of());
+        return dto;
+    }
+
+    private String resolveActorName(User user) {
+        if (user == null) {
+            return null;
+        }
+        if (user.getUserName() != null && !user.getUserName().isBlank()) {
+            return user.getUserName();
+        }
+        return user.getEmail();
     }
 
     private Map<Long, Integer> getRecipeCountByFoodIds(List<Long> foodIds) {

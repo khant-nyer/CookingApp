@@ -8,6 +8,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class UserProfileService {
@@ -37,6 +40,8 @@ public class UserProfileService {
                 .email(user.getEmail())
                 .userName(user.getUserName())
                 .profileImageUrl(user.getProfileImageUrl())
+                .role(user.getRole())
+                .allergies(user.getAllergies() == null ? List.of() : new ArrayList<>(user.getAllergies()))
                 .build();
     }
 }
