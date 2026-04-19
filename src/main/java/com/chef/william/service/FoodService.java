@@ -107,14 +107,33 @@ public class FoodService {
     }
 
     private void mapToEntity(FoodDTO dto, Food entity, User currentUser) {
+        String auditActor = resolveAuditActor(currentUser);
         entity.setName(normalizeName(dto.getName()));
         entity.setCategory(dto.getCategory());
         entity.setImageUrl(dto.getImageUrl());
         entity.setUser(currentUser);
+        if (entity.getCreatedBy() == null || entity.getCreatedBy().isBlank()) {
+            entity.setCreatedBy(auditActor);
+        }
+        entity.setUpdatedBy(auditActor);
+        entity.setUpdatedAt(LocalDateTime.now());
     }
 
     private String normalizeName(String name) {
         return name == null ? null : name.trim();
+    }
+
+    private String resolveAuditActor(User currentUser) {
+        if (currentUser.getUserName() != null && !currentUser.getUserName().isBlank()) {
+            return currentUser.getUserName();
+        }
+        if (currentUser.getEmail() != null && !currentUser.getEmail().isBlank()) {
+            return currentUser.getEmail();
+        }
+        if (currentUser.getCognitoSub() != null && !currentUser.getCognitoSub().isBlank()) {
+            return currentUser.getCognitoSub();
+        }
+        throw new BusinessException("Authenticated user has no usable identifier for audit fields");
     }
 
     private FoodDTO mapToDto(Food food) {
@@ -126,9 +145,9 @@ public class FoodService {
                 food.getName(),
                 food.getCategory(),
                 food.getImageUrl(),
-                food.getUser() != null ? food.getUser().getUserName() : null,
-                food.getUser() != null ? food.getUser().getUserName() : null,
-                null,
+                food.getCreatedBy(),
+                food.getUpdatedBy(),
+                food.getUpdatedAt(),
                 recipes.size(),
                 recipes
         );
@@ -140,9 +159,9 @@ public class FoodService {
                 food.getName(),
                 food.getCategory(),
                 food.getImageUrl(),
-                food.getUser() != null ? food.getUser().getUserName() : null,
-                food.getUser() != null ? food.getUser().getUserName() : null,
-                null,
+                food.getCreatedBy(),
+                food.getUpdatedBy(),
+                food.getUpdatedAt(),
                 recipeCount,
                 List.of()
         );
