@@ -32,17 +32,22 @@ public class IngredientService {
     @Transactional
     public IngredientDTO createIngredient(IngredientDTO dto) {
         User currentUser = currentUserService.getRequiredCurrentUser();
+        String auditActor = resolveAuditActor(currentUser);
         Ingredient ingredient = new Ingredient();
         ingredientMapper.updateEntityFromDto(dto, ingredient);
         ingredient.setUser(currentUser);
+        ingredient.setCreatedBy(auditActor);
+        ingredient.setUpdatedBy(auditActor);
+        ingredient.setUpdatedAt(LocalDateTime.now());
         ingredient = ingredientRepository.save(ingredient);
         return ingredientMapper.toDto(ingredient);
     }
 
     @Transactional
     public List<IngredientDTO> createIngredients(List<IngredientDTO> dtos) {
-        User currentUser = currentUserService.getRequiredCurrentUser();
         validateBulkCreatePayload(dtos);
+        User currentUser = currentUserService.getRequiredCurrentUser();
+        String auditActor = resolveAuditActor(currentUser);
         List<Ingredient> ingredients = dtos.stream()
                 .map(dto -> {
                     if (dto == null) {
@@ -51,6 +56,9 @@ public class IngredientService {
                     Ingredient ingredient = new Ingredient();
                     ingredientMapper.updateEntityFromDto(dto, ingredient);
                     ingredient.setUser(currentUser);
+                    ingredient.setCreatedBy(auditActor);
+                    ingredient.setUpdatedBy(auditActor);
+                    ingredient.setUpdatedAt(LocalDateTime.now());
                     return ingredient;
                 })
                 .toList();
@@ -63,11 +71,17 @@ public class IngredientService {
     @Transactional
     public IngredientDTO updateIngredient(Long id, IngredientDTO dto) {
         User currentUser = currentUserService.getRequiredCurrentUser();
+        String auditActor = resolveAuditActor(currentUser);
         Ingredient ingredient = ingredientRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Ingredient not found with id: " + id));
 
         ingredientMapper.updateEntityFromDto(dto, ingredient);
         ingredient.setUser(currentUser);
+        if (ingredient.getCreatedBy() == null || ingredient.getCreatedBy().isBlank()) {
+            ingredient.setCreatedBy(auditActor);
+        }
+        ingredient.setUpdatedBy(auditActor);
+        ingredient.setUpdatedAt(LocalDateTime.now());
         ingredient = ingredientRepository.save(ingredient);
         return ingredientMapper.toDto(ingredient);
     }
@@ -141,5 +155,18 @@ public class IngredientService {
                     .orElse(existingNames.iterator().next());
             throw new BusinessException("Ingredient already exists: " + duplicated);
         }
+    }
+
+    private String resolveAuditActor(User currentUser) {
+        if (currentUser.getUserName() != null && !currentUser.getUserName().isBlank()) {
+            return currentUser.getUserName();
+        }
+        if (currentUser.getEmail() != null && !currentUser.getEmail().isBlank()) {
+            return currentUser.getEmail();
+        }
+        if (currentUser.getCognitoSub() != null && !currentUser.getCognitoSub().isBlank()) {
+            return currentUser.getCognitoSub();
+        }
+        throw new BusinessException("Authenticated user has no usable identifier for audit fields");
     }
 }

@@ -10,6 +10,7 @@ import com.chef.william.model.enums.Unit;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -63,5 +64,24 @@ class IngredientMapperTest {
         dto.setServingUnit(null);
 
         assertThrows(BusinessException.class, () -> ingredientMapper.updateEntityFromDto(dto, entity));
+    }
+
+    @Test
+    void toDtoShouldUseAuditFieldsFromEntity() {
+        Ingredient entity = new Ingredient();
+        entity.setId(1L);
+        entity.setName("Salt");
+        entity.setServingAmount(100.0);
+        entity.setServingUnit("g");
+        entity.setCreatedBy("creator");
+        entity.setUpdatedBy("editor");
+        entity.setUpdatedAt(LocalDateTime.of(2026, 4, 19, 14, 25));
+        entity.setNutritionList(new ArrayList<>());
+
+        IngredientDTO dto = ingredientMapper.toDto(entity);
+
+        assertEquals("creator", dto.getCreatedBy());
+        assertEquals("editor", dto.getUpdatedBy());
+        assertEquals(LocalDateTime.of(2026, 4, 19, 14, 25), dto.getUpdatedAt());
     }
 }

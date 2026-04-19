@@ -26,8 +26,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -51,6 +53,41 @@ class IngredientServiceTest {
 
     @InjectMocks
     private IngredientService ingredientService;
+
+    @Test
+    void createIngredientShouldPopulateAuditFields() {
+        User user = new User();
+        user.setUserName("creator");
+
+        IngredientDTO request = new IngredientDTO();
+        request.setName("Salt");
+        request.setServingAmount(100.0);
+        request.setServingUnit(Unit.G);
+
+        AtomicReference<Ingredient> savedRef = new AtomicReference<>();
+        when(currentUserService.getRequiredCurrentUser()).thenReturn(user);
+        when(ingredientRepository.save(any(Ingredient.class))).thenAnswer(invocation -> {
+            Ingredient saved = invocation.getArgument(0);
+            savedRef.set(saved);
+            return saved;
+        });
+        when(ingredientMapper.toDto(any(Ingredient.class))).thenAnswer(invocation -> {
+            Ingredient source = invocation.getArgument(0);
+            IngredientDTO mapped = new IngredientDTO();
+            mapped.setName(source.getName());
+            mapped.setCreatedBy(source.getCreatedBy());
+            mapped.setUpdatedBy(source.getUpdatedBy());
+            mapped.setUpdatedAt(source.getUpdatedAt());
+            return mapped;
+        });
+
+        IngredientDTO result = ingredientService.createIngredient(request);
+
+        assertEquals("creator", savedRef.get().getCreatedBy());
+        assertEquals("creator", savedRef.get().getUpdatedBy());
+        assertNotNull(savedRef.get().getUpdatedAt());
+        assertEquals("creator", result.getCreatedBy());
+    }
 
     @Test
     void updateIngredientMergesNutrientsByType() {

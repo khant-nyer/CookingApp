@@ -1,6 +1,7 @@
 package com.chef.william.service;
 
 import com.chef.william.dto.RecipeDTO;
+import com.chef.william.exception.BusinessException;
 import com.chef.william.exception.DuplicateResourceException;
 import com.chef.william.exception.ResourceNotFoundException;
 import com.chef.william.model.Food;
@@ -112,9 +113,15 @@ public class RecipeService {
     }
 
     private void populateScalars(Recipe recipe, RecipeDTO dto, User currentUser) {
+        String auditActor = resolveAuditActor(currentUser);
         recipe.setVersion(dto.getVersion());
         recipe.setDescription(dto.getDescription());
         recipe.setUser(currentUser);
+        if (recipe.getCreatedBy() == null || recipe.getCreatedBy().isBlank()) {
+            recipe.setCreatedBy(auditActor);
+        }
+        recipe.setUpdatedBy(auditActor);
+        recipe.setUpdatedAt(LocalDateTime.now());
 
         if (dto.getFoodId() != null) {
             Food food = foodRepository.findById(dto.getFoodId())
@@ -123,5 +130,18 @@ public class RecipeService {
         } else {
             recipe.setFood(null);
         }
+    }
+
+    private String resolveAuditActor(User currentUser) {
+        if (currentUser.getUserName() != null && !currentUser.getUserName().isBlank()) {
+            return currentUser.getUserName();
+        }
+        if (currentUser.getEmail() != null && !currentUser.getEmail().isBlank()) {
+            return currentUser.getEmail();
+        }
+        if (currentUser.getCognitoSub() != null && !currentUser.getCognitoSub().isBlank()) {
+            return currentUser.getCognitoSub();
+        }
+        throw new BusinessException("Authenticated user has no usable identifier for audit fields");
     }
 }
