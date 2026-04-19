@@ -27,6 +27,7 @@ import org.springframework.data.domain.PageRequest;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -98,6 +99,38 @@ class FoodServiceTest {
         assertEquals(1, result.getRecipes().size());
         assertEquals(2L, result.getRecipes().getFirst().getId());
         assertEquals("https://img.example/pad-thai.jpg", result.getImageUrl());
+    }
+
+    @Test
+    void createFoodShouldPopulateAuditFields() {
+        User user = new User();
+        user.setUserName("tester");
+        Food food = new Food();
+        food.setId(20L);
+        food.setName("Khao Pad");
+        food.setCategory("Rice");
+        food.setCreatedBy("tester");
+        food.setUpdatedBy("tester");
+        food.setUpdatedAt(java.time.LocalDateTime.now());
+
+        AtomicReference<Food> savedRef = new AtomicReference<>();
+        when(currentUserService.getRequiredCurrentUser()).thenReturn(user);
+        when(foodRepository.save(any(Food.class))).thenAnswer(invocation -> {
+            Food saved = invocation.getArgument(0);
+            saved.setId(20L);
+            savedRef.set(saved);
+            return saved;
+        });
+        when(recipeRepository.findDetailedByFoodId(20L)).thenReturn(List.of());
+
+        FoodDTO result = foodService.createFood(new FoodDTO(null, "Khao Pad", "Rice",
+                null, null, null, null, null, List.of()));
+
+        assertEquals("tester", savedRef.get().getCreatedBy());
+        assertEquals("tester", savedRef.get().getUpdatedBy());
+        assertNotNull(savedRef.get().getUpdatedAt());
+        assertEquals("tester", result.getCreatedBy());
+        assertEquals("tester", result.getUpdatedBy());
     }
 
     @Test
