@@ -20,6 +20,9 @@ public class RecipeMapper {
                 .description(recipe.getDescription())
                 .foodId(recipe.getFood() != null ? recipe.getFood().getId() : null)
                 .foodName(recipe.getFood() != null ? recipe.getFood().getName() : null)
+                .createdBy(resolveActorName(recipe.getUser()))
+                .updatedBy(resolveActorName(recipe.getUpdatedBy()))
+                .updatedAt(recipe.getUpdatedAt())
                 .build();
 
         List<RecipeIngredientDTO> ingredientDTOs = recipe.getRecipeIngredients().stream()
@@ -51,5 +54,15 @@ public class RecipeMapper {
         dto.setInstructions(new ArrayList<>(instructionDTOs));
 
         return dto;
+    }
+
+    private String resolveActorName(com.chef.william.model.User user) {
+        if (user == null) {
+            return null;
+        }
+        if (user.getUserName() != null && !user.getUserName().isBlank()) {
+            return user.getUserName();
+        }
+        return user.getEmail();
     }
 }

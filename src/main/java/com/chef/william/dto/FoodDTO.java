@@ -7,6 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -26,8 +27,26 @@ public class FoodDTO {
     @Size(max = 1000, message = "Image URL must not exceed 1000 characters")
     private String imageUrl;
 
+    private String createdBy;
+    private String updatedBy;
+    private LocalDateTime updatedAt;
+
     private Integer recipeCount;
 
     @Valid
     private List<RecipeDTO> recipes = new ArrayList<>();
+
+    public FoodDTO(Long id,
+                   String name,
+                   String category,
+                   String imageUrl,
+                   Integer recipeCount,
+                   List<RecipeDTO> recipes) {
+        this.id = id;
+        this.name = name;
+        this.category = category;
+        this.imageUrl = imageUrl;
+        this.recipeCount = recipeCount;
+        this.recipes = recipes;
+    }
 }
