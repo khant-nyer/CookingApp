@@ -4,7 +4,9 @@ import com.chef.william.dto.IngredientDTO;
 import com.chef.william.exception.BusinessException;
 import com.chef.william.exception.ResourceNotFoundException;
 import com.chef.william.model.Ingredient;
+import com.chef.william.model.User;
 import com.chef.william.repository.IngredientRepository;
+import com.chef.william.service.auth.CurrentUserService;
 import com.chef.william.service.ingredient.IngredientSearchService;
 import com.chef.william.service.mapper.IngredientMapper;
 import lombok.RequiredArgsConstructor;
@@ -24,17 +26,21 @@ public class IngredientService {
     private final IngredientRepository ingredientRepository;
     private final IngredientMapper ingredientMapper;
     private final IngredientSearchService ingredientSearchService;
+    private final CurrentUserService currentUserService;
 
     @Transactional
     public IngredientDTO createIngredient(IngredientDTO dto) {
+        User currentUser = currentUserService.getRequiredCurrentUser();
         Ingredient ingredient = new Ingredient();
         ingredientMapper.updateEntityFromDto(dto, ingredient);
+        ingredient.setUser(currentUser);
         ingredient = ingredientRepository.save(ingredient);
         return ingredientMapper.toDto(ingredient);
     }
 
     @Transactional
     public List<IngredientDTO> createIngredients(List<IngredientDTO> dtos) {
+        User currentUser = currentUserService.getRequiredCurrentUser();
         validateBulkCreatePayload(dtos);
         List<Ingredient> ingredients = dtos.stream()
                 .map(dto -> {
@@ -43,6 +49,7 @@ public class IngredientService {
                     }
                     Ingredient ingredient = new Ingredient();
                     ingredientMapper.updateEntityFromDto(dto, ingredient);
+                    ingredient.setUser(currentUser);
                     return ingredient;
                 })
                 .toList();
@@ -54,10 +61,12 @@ public class IngredientService {
 
     @Transactional
     public IngredientDTO updateIngredient(Long id, IngredientDTO dto) {
+        User currentUser = currentUserService.getRequiredCurrentUser();
         Ingredient ingredient = ingredientRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Ingredient not found with id: " + id));
 
         ingredientMapper.updateEntityFromDto(dto, ingredient);
+        ingredient.setUser(currentUser);
         ingredient = ingredientRepository.save(ingredient);
         return ingredientMapper.toDto(ingredient);
     }

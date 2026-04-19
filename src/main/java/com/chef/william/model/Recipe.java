@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.Fetch;
 import org.hibernate.annotations.FetchMode;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -36,6 +37,35 @@ public class Recipe {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "food_id")
     private Food food;
+
+    @Column(nullable = false, length = 120)
+    private String createdBy;
+
+    @Column(length = 120)
+    private String updatedBy;
+
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    private void onCreate() {
+        String actor = resolveActor();
+        this.createdBy = actor;
+        this.updatedBy = actor;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    private void onUpdate() {
+        this.updatedBy = resolveActor();
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    private String resolveActor() {
+        if (this.user != null && this.user.getUserName() != null && !this.user.getUserName().isBlank()) {
+            return this.user.getUserName();
+        }
+        return "SYSTEM";
+    }
 
     @OneToMany(mappedBy = "recipe", cascade = CascadeType.ALL, orphanRemoval = true)
     @Fetch(FetchMode.SUBSELECT)

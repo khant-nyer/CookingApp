@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -33,6 +34,35 @@ public class Food {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User user;
+
+    @Column(nullable = false, length = 120)
+    private String createdBy;
+
+    @Column(length = 120)
+    private String updatedBy;
+
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    private void onCreate() {
+        String actor = resolveActor();
+        this.createdBy = actor;
+        this.updatedBy = actor;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    private void onUpdate() {
+        this.updatedBy = resolveActor();
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    private String resolveActor() {
+        if (this.user != null && this.user.getUserName() != null && !this.user.getUserName().isBlank()) {
+            return this.user.getUserName();
+        }
+        return "SYSTEM";
+    }
 
     @OneToMany(mappedBy = "food", fetch = FetchType.LAZY)
     private List<Recipe> recipes = new ArrayList<>();
