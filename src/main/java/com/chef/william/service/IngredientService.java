@@ -45,9 +45,9 @@ public class IngredientService {
 
     @Transactional
     public List<IngredientDTO> createIngredients(List<IngredientDTO> dtos) {
+        validateBulkCreatePayload(dtos);
         User currentUser = currentUserService.getRequiredCurrentUser();
         String auditActor = resolveAuditActor(currentUser);
-        validateBulkCreatePayload(dtos);
         List<Ingredient> ingredients = dtos.stream()
                 .map(dto -> {
                     if (dto == null) {
