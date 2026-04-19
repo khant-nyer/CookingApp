@@ -22,8 +22,10 @@ import org.springframework.data.domain.PageRequest;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -104,6 +106,39 @@ class RecipeServiceTest {
 
         verify(recipeMergeService).mergeIngredients(any(Recipe.class), any(RecipeDTO.class));
         verify(recipeMergeService).mergeInstructions(any(Recipe.class), any(RecipeDTO.class));
+    }
+
+    @Test
+    void createRecipeShouldPopulateAuditFields() {
+        User user = new User();
+        user.setUserName("chef");
+        RecipeDTO dto = new RecipeDTO();
+        dto.setVersion("v3");
+        dto.setDescription("Audit check");
+
+        AtomicReference<Recipe> savedRef = new AtomicReference<>();
+        when(recipeRepository.existsByVersion("v3")).thenReturn(false);
+        when(currentUserService.getRequiredCurrentUser()).thenReturn(user);
+        when(recipeRepository.save(any(Recipe.class))).thenAnswer(invocation -> {
+            Recipe saved = invocation.getArgument(0);
+            savedRef.set(saved);
+            return saved;
+        });
+        when(recipeMapper.toDto(any(Recipe.class))).thenAnswer(invocation -> {
+            Recipe source = invocation.getArgument(0);
+            RecipeDTO mapped = new RecipeDTO();
+            mapped.setCreatedBy(source.getCreatedBy());
+            mapped.setUpdatedBy(source.getUpdatedBy());
+            mapped.setUpdatedAt(source.getUpdatedAt());
+            return mapped;
+        });
+
+        RecipeDTO result = recipeService.createRecipe(dto);
+
+        assertEquals("chef", savedRef.get().getCreatedBy());
+        assertEquals("chef", savedRef.get().getUpdatedBy());
+        assertNotNull(savedRef.get().getUpdatedAt());
+        assertEquals("chef", result.getCreatedBy());
     }
 
     @Test
