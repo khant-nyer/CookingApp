@@ -34,7 +34,8 @@ class FoodControllerTest {
 
     @Test
     void createFoodShouldStillWorkWithoutRecipes() throws Exception {
-        FoodDTO response = new FoodDTO(1L, "Tom Yum", "Soup", "https://img.example/tom-yum.jpg", 0, List.of());
+        FoodDTO response = new FoodDTO(1L, "Tom Yum", "Soup", "https://img.example/tom-yum.jpg",
+                null, null, null, 0, List.of());
         when(foodService.createFood(any(FoodDTO.class))).thenReturn(response);
 
         mockMvc.perform(post("/api/foods")

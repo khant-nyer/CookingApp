@@ -37,6 +37,8 @@ public class UserProfileService {
                 .email(user.getEmail())
                 .userName(user.getUserName())
                 .profileImageUrl(user.getProfileImageUrl())
+                .role(user.getRole())
+                .allergies(user.getAllergies())
                 .build();
     }
 }
