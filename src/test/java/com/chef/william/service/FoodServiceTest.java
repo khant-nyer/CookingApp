@@ -8,10 +8,12 @@ import com.chef.william.dto.RecipeIngredientDTO;
 import com.chef.william.exception.DuplicateResourceException;
 import com.chef.william.model.Food;
 import com.chef.william.model.Recipe;
+import com.chef.william.model.User;
 import com.chef.william.model.enums.Unit;
 import com.chef.william.repository.FoodRecipeCountProjection;
 import com.chef.william.repository.FoodRepository;
 import com.chef.william.repository.RecipeRepository;
+import com.chef.william.service.auth.CurrentUserService;
 import com.chef.william.service.mapper.RecipeMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,6 +27,7 @@ import org.springframework.data.domain.PageRequest;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -46,6 +49,8 @@ class FoodServiceTest {
 
     @Mock
     private RecipeMapper recipeMapper;
+    @Mock
+    private CurrentUserService currentUserService;
 
     @InjectMocks
     private FoodService foodService;
@@ -68,6 +73,8 @@ class FoodServiceTest {
 
     @Test
     void createFoodShouldReturnMappedDto() {
+        User user = new User();
+        user.setUserName("tester");
         Food food = new Food();
         food.setId(10L);
         food.setName("Pad Thai");
@@ -82,8 +89,10 @@ class FoodServiceTest {
         when(foodRepository.save(any(Food.class))).thenReturn(food);
         when(recipeRepository.findDetailedByFoodId(10L)).thenReturn(List.of(recipe));
         when(recipeMapper.toDto(recipe)).thenReturn(recipeDTO);
+        when(currentUserService.getRequiredCurrentUser()).thenReturn(user);
 
-        FoodDTO result = foodService.createFood(new FoodDTO(null, "Pad Thai", "Noodle", "https://img.example/pad-thai.jpg", null, List.of()));
+        FoodDTO result = foodService.createFood(new FoodDTO(null, "Pad Thai", "Noodle",
+                "https://img.example/pad-thai.jpg", null, null, null, null, List.of()));
 
         assertEquals(10L, result.getId());
         assertEquals(1, result.getRecipeCount());
@@ -93,7 +102,41 @@ class FoodServiceTest {
     }
 
     @Test
+    void createFoodShouldPopulateAuditFields() {
+        User user = new User();
+        user.setUserName("tester");
+        Food food = new Food();
+        food.setId(20L);
+        food.setName("Khao Pad");
+        food.setCategory("Rice");
+        food.setCreatedBy("tester");
+        food.setUpdatedBy("tester");
+        food.setUpdatedAt(java.time.LocalDateTime.now());
+
+        AtomicReference<Food> savedRef = new AtomicReference<>();
+        when(currentUserService.getRequiredCurrentUser()).thenReturn(user);
+        when(foodRepository.save(any(Food.class))).thenAnswer(invocation -> {
+            Food saved = invocation.getArgument(0);
+            saved.setId(20L);
+            savedRef.set(saved);
+            return saved;
+        });
+        when(recipeRepository.findDetailedByFoodId(20L)).thenReturn(List.of());
+
+        FoodDTO result = foodService.createFood(new FoodDTO(null, "Khao Pad", "Rice",
+                null, null, null, null, null, List.of()));
+
+        assertEquals("tester", savedRef.get().getCreatedBy());
+        assertEquals("tester", savedRef.get().getUpdatedBy());
+        assertNotNull(savedRef.get().getUpdatedAt());
+        assertEquals("tester", result.getCreatedBy());
+        assertEquals("tester", result.getUpdatedBy());
+    }
+
+    @Test
     void createFoodShouldCreateRecipeVersionsWhenProvided() {
+        User user = new User();
+        user.setUserName("tester");
         Food food = new Food();
         food.setId(12L);
         food.setName("Som Tum");
@@ -108,18 +151,24 @@ class FoodServiceTest {
 
         when(foodRepository.save(any(Food.class))).thenReturn(food);
         when(recipeRepository.findDetailedByFoodId(12L)).thenReturn(List.of());
+        when(currentUserService.getRequiredCurrentUser()).thenReturn(user);
 
-        foodService.createFood(new FoodDTO(null, "Som Tum", "Salad", "https://img.example/som-tum.jpg", null, List.of(recipeDTO)));
+        foodService.createFood(new FoodDTO(null, "Som Tum", "Salad",
+                "https://img.example/som-tum.jpg", null, null, null, null, List.of(recipeDTO)));
 
         verify(recipeService).createRecipe(any(RecipeDTO.class));
     }
 
     @Test
     void createFoodShouldThrowWhenNameAlreadyExists() {
+        User user = new User();
+        user.setUserName("tester");
         when(foodRepository.existsByNameIgnoreCase("Ramen")).thenReturn(true);
+        when(currentUserService.getRequiredCurrentUser()).thenReturn(user);
 
         assertThrows(DuplicateResourceException.class,
-                () -> foodService.createFood(new FoodDTO(null, "Ramen", "Noodle", "https://img.example/ramen.jpg", null, List.of())));
+                () -> foodService.createFood(new FoodDTO(null, "Ramen", "Noodle",
+                        "https://img.example/ramen.jpg", null, null, null, null, List.of())));
 
         verify(foodRepository, never()).save(any(Food.class));
     }

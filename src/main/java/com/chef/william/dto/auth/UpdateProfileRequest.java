@@ -3,6 +3,8 @@ package com.chef.william.dto.auth;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 public class UpdateProfileRequest {
 
@@ -10,4 +12,6 @@ public class UpdateProfileRequest {
     private String userName;
 
     private String profileImageUrl;
+
+    private List<String> allergies;
 }

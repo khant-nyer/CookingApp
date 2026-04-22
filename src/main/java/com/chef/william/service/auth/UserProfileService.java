@@ -26,6 +26,9 @@ public class UserProfileService {
         User currentUser = currentUserService.getRequiredCurrentUser();
         currentUser.setUserName(request.getUserName());
         currentUser.setProfileImageUrl(request.getProfileImageUrl());
+        if (request.getAllergies() != null) {
+            currentUser.setAllergies(request.getAllergies());
+        }
         User saved = userRepository.save(currentUser);
         return toResponse(saved);
     }
@@ -37,6 +40,8 @@ public class UserProfileService {
                 .email(user.getEmail())
                 .userName(user.getUserName())
                 .profileImageUrl(user.getProfileImageUrl())
+                .role(user.getRole())
+                .allergies(user.getAllergies())
                 .build();
     }
 }

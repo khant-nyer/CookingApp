@@ -5,8 +5,10 @@ import com.chef.william.exception.DuplicateResourceException;
 import com.chef.william.exception.ResourceNotFoundException;
 import com.chef.william.model.Food;
 import com.chef.william.model.Recipe;
+import com.chef.william.model.User;
 import com.chef.william.repository.FoodRepository;
 import com.chef.william.repository.RecipeRepository;
+import com.chef.william.service.auth.CurrentUserService;
 import com.chef.william.service.mapper.RecipeMapper;
 import com.chef.william.service.recipe.RecipeMergeService;
 import org.junit.jupiter.api.Test;
@@ -20,8 +22,10 @@ import org.springframework.data.domain.PageRequest;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -42,12 +46,16 @@ class RecipeServiceTest {
 
     @Mock
     private RecipeMapper recipeMapper;
+    @Mock
+    private CurrentUserService currentUserService;
 
     @InjectMocks
     private RecipeService recipeService;
 
     @Test
     void createRecipeThrowsWhenFoodIdNotFound() {
+        User user = new User();
+        user.setUserName("chef");
         RecipeDTO dto = new RecipeDTO();
         dto.setVersion("v1");
         dto.setFoodId(404L);
@@ -55,6 +63,7 @@ class RecipeServiceTest {
         dto.setInstructions(List.of());
 
         when(foodRepository.findById(404L)).thenReturn(Optional.empty());
+        when(currentUserService.getRequiredCurrentUser()).thenReturn(user);
 
         assertThrows(ResourceNotFoundException.class, () -> recipeService.createRecipe(dto));
         verify(recipeRepository, never()).save(any());
@@ -62,10 +71,13 @@ class RecipeServiceTest {
 
     @Test
     void createRecipeThrowsWhenVersionAlreadyExists() {
+        User user = new User();
+        user.setUserName("chef");
         RecipeDTO dto = new RecipeDTO();
         dto.setVersion("v1");
 
         when(recipeRepository.existsByVersion("v1")).thenReturn(true);
+        when(currentUserService.getRequiredCurrentUser()).thenReturn(user);
 
         assertThrows(DuplicateResourceException.class, () -> recipeService.createRecipe(dto));
         verify(recipeRepository, never()).save(any());
@@ -73,6 +85,8 @@ class RecipeServiceTest {
 
     @Test
     void createRecipeAssignsFoodWhenFoodIdProvided() {
+        User user = new User();
+        user.setUserName("chef");
         Food food = new Food();
         food.setId(7L);
         food.setName("Pad Kra Pao");
@@ -86,11 +100,45 @@ class RecipeServiceTest {
         when(foodRepository.findById(7L)).thenReturn(Optional.of(food));
         when(recipeRepository.save(any(Recipe.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(recipeMapper.toDto(any(Recipe.class))).thenReturn(new RecipeDTO());
+        when(currentUserService.getRequiredCurrentUser()).thenReturn(user);
 
         recipeService.createRecipe(dto);
 
         verify(recipeMergeService).mergeIngredients(any(Recipe.class), any(RecipeDTO.class));
         verify(recipeMergeService).mergeInstructions(any(Recipe.class), any(RecipeDTO.class));
+    }
+
+    @Test
+    void createRecipeShouldPopulateAuditFields() {
+        User user = new User();
+        user.setUserName("chef");
+        RecipeDTO dto = new RecipeDTO();
+        dto.setVersion("v3");
+        dto.setDescription("Audit check");
+
+        AtomicReference<Recipe> savedRef = new AtomicReference<>();
+        when(recipeRepository.existsByVersion("v3")).thenReturn(false);
+        when(currentUserService.getRequiredCurrentUser()).thenReturn(user);
+        when(recipeRepository.save(any(Recipe.class))).thenAnswer(invocation -> {
+            Recipe saved = invocation.getArgument(0);
+            savedRef.set(saved);
+            return saved;
+        });
+        when(recipeMapper.toDto(any(Recipe.class))).thenAnswer(invocation -> {
+            Recipe source = invocation.getArgument(0);
+            RecipeDTO mapped = new RecipeDTO();
+            mapped.setCreatedBy(source.getCreatedBy());
+            mapped.setUpdatedBy(source.getUpdatedBy());
+            mapped.setUpdatedAt(source.getUpdatedAt());
+            return mapped;
+        });
+
+        RecipeDTO result = recipeService.createRecipe(dto);
+
+        assertEquals("chef", savedRef.get().getCreatedBy());
+        assertEquals("chef", savedRef.get().getUpdatedBy());
+        assertNotNull(savedRef.get().getUpdatedAt());
+        assertEquals("chef", result.getCreatedBy());
     }
 
     @Test
