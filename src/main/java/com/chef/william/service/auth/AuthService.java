@@ -3,8 +3,11 @@ package com.chef.william.service.auth;
 import com.chef.william.config.security.CognitoProperties;
 import com.chef.william.dto.auth.RegisterUserRequest;
 import com.chef.william.dto.auth.RegisterUserResponse;
+import com.chef.william.dto.auth.VerifyEmailRequest;
+import com.chef.william.dto.auth.VerifyEmailResponse;
 import com.chef.william.exception.BusinessException;
 import com.chef.william.exception.DuplicateResourceException;
+import com.chef.william.exception.ResourceNotFoundException;
 import com.chef.william.exception.auth.CognitoRegistrationException;
 import com.chef.william.model.AccountStatus;
 import com.chef.william.model.User;
@@ -22,6 +25,9 @@ import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityPr
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminDeleteUserRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AttributeType;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.CognitoIdentityProviderException;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.CodeMismatchException;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.ConfirmSignUpRequest;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.ExpiredCodeException;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.InvalidParameterException;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.InvalidPasswordException;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.NotAuthorizedException;
@@ -48,6 +54,48 @@ public class AuthService {
 
     @Value("${app.idempotency.registration.ttl-minutes}")
     private long idempotencyTtlMinutes;
+
+
+    @Transactional
+    public VerifyEmailResponse verifyEmail(VerifyEmailRequest request) {
+        try {
+            ConfirmSignUpRequest.Builder confirmBuilder = ConfirmSignUpRequest.builder()
+                    .clientId(cognitoProperties.getAppClientId())
+                    .username(request.getEmail())
+                    .confirmationCode(request.getCode());
+
+            if (cognitoProperties.hasAppClientSecret()) {
+                confirmBuilder.secretHash(calculateSecretHash(
+                        request.getEmail(),
+                        cognitoProperties.getAppClientId(),
+                        cognitoProperties.getAppClientSecret()
+                ));
+            }
+
+            cognitoClient.confirmSignUp(confirmBuilder.build());
+        } catch (CodeMismatchException | ExpiredCodeException ex) {
+            throw new BusinessException(ex.getMessage());
+        } catch (NotAuthorizedException ex) {
+            throw new BusinessException(buildAuthorizationFailureMessage(ex));
+        } catch (CognitoIdentityProviderException ex) {
+            String detail = ex.awsErrorDetails() != null ? ex.awsErrorDetails().errorMessage() : ex.getMessage();
+            throw new BusinessException("Failed to verify email in Cognito: " + detail);
+        }
+
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email", request.getEmail()));
+
+        user.setEmailVerified(true);
+        user.setAccountStatus(AccountStatus.ACTIVE);
+        User saved = userRepository.save(user);
+
+        return VerifyEmailResponse.builder()
+                .email(saved.getEmail())
+                .emailVerified(saved.isEmailVerified())
+                .accountStatus(saved.getAccountStatus())
+                .status("CONFIRMED")
+                .build();
+    }
 
     @Transactional
     public RegisterUserResponse register(RegisterUserRequest request, String idempotencyKey) {

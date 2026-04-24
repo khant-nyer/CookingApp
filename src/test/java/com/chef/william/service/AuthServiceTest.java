@@ -3,8 +3,11 @@ package com.chef.william.service;
 import com.chef.william.config.security.CognitoProperties;
 import com.chef.william.dto.auth.RegisterUserRequest;
 import com.chef.william.dto.auth.RegisterUserResponse;
+import com.chef.william.dto.auth.VerifyEmailRequest;
+import com.chef.william.dto.auth.VerifyEmailResponse;
 import com.chef.william.exception.BusinessException;
 import com.chef.william.exception.DuplicateResourceException;
+import com.chef.william.exception.ResourceNotFoundException;
 import com.chef.william.exception.auth.CognitoRegistrationException;
 import com.chef.william.model.AccountStatus;
 import com.chef.william.model.auth.RegistrationIdempotencyRecord;
@@ -131,6 +134,46 @@ class AuthServiceTest {
         verify(userRepository).save(captor.capture());
         assertEquals(true, captor.getValue().isEmailVerified());
         assertEquals(AccountStatus.ACTIVE, captor.getValue().getAccountStatus());
+    }
+
+    @Test
+    void verifyEmailShouldConfirmCognitoAndUpdateLocalUser() {
+        VerifyEmailRequest request = new VerifyEmailRequest();
+        request.setEmail("chef@example.com");
+        request.setCode("123456");
+
+        com.chef.william.model.User user = new com.chef.william.model.User();
+        user.setEmail("chef@example.com");
+        user.setEmailVerified(false);
+        user.setAccountStatus(AccountStatus.PENDING_EMAIL_VERIFICATION);
+
+        when(userRepository.findByEmail("chef@example.com")).thenReturn(Optional.of(user));
+        when(userRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(cognitoClient.confirmSignUp(any(ConfirmSignUpRequest.class))).thenReturn(ConfirmSignUpResponse.builder().build());
+
+        VerifyEmailResponse response = authService.verifyEmail(request);
+
+        assertEquals("chef@example.com", response.getEmail());
+        assertEquals(true, response.isEmailVerified());
+        assertEquals(AccountStatus.ACTIVE, response.getAccountStatus());
+        assertEquals("CONFIRMED", response.getStatus());
+
+        ArgumentCaptor<ConfirmSignUpRequest> captor = ArgumentCaptor.forClass(ConfirmSignUpRequest.class);
+        verify(cognitoClient).confirmSignUp(captor.capture());
+        assertEquals("chef@example.com", captor.getValue().username());
+        assertEquals("123456", captor.getValue().confirmationCode());
+    }
+
+    @Test
+    void verifyEmailShouldThrowWhenUserNotFoundLocally() {
+        VerifyEmailRequest request = new VerifyEmailRequest();
+        request.setEmail("unknown@example.com");
+        request.setCode("123456");
+
+        when(cognitoClient.confirmSignUp(any(ConfirmSignUpRequest.class))).thenReturn(ConfirmSignUpResponse.builder().build());
+        when(userRepository.findByEmail("unknown@example.com")).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> authService.verifyEmail(request));
     }
 
     @Test

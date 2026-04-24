@@ -2,6 +2,8 @@ package com.chef.william.controller.auth;
 
 import com.chef.william.dto.auth.RegisterUserRequest;
 import com.chef.william.dto.auth.RegisterUserResponse;
+import com.chef.william.dto.auth.VerifyEmailRequest;
+import com.chef.william.dto.auth.VerifyEmailResponse;
 import com.chef.william.exception.BusinessException;
 import com.chef.william.service.auth.AuthService;
 import jakarta.validation.Valid;
@@ -30,5 +32,11 @@ public class AuthController {
         }
         RegisterUserResponse response = authService.register(request, idempotencyKey);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PostMapping("/verify-email")
+    public ResponseEntity<VerifyEmailResponse> verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
+        VerifyEmailResponse response = authService.verifyEmail(request);
+        return ResponseEntity.ok(response);
     }
 }
