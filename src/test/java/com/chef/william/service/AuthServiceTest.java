@@ -6,6 +6,7 @@ import com.chef.william.dto.auth.RegisterUserResponse;
 import com.chef.william.exception.BusinessException;
 import com.chef.william.exception.DuplicateResourceException;
 import com.chef.william.exception.auth.CognitoRegistrationException;
+import com.chef.william.model.AccountStatus;
 import com.chef.william.model.auth.RegistrationIdempotencyRecord;
 import com.chef.william.model.auth.RegistrationIdempotencyStatus;
 import com.chef.william.repository.RegistrationIdempotencyRepository;
@@ -89,6 +90,8 @@ class AuthServiceTest {
         ArgumentCaptor<com.chef.william.model.User> captor = ArgumentCaptor.forClass(com.chef.william.model.User.class);
         verify(userRepository).save(captor.capture());
         assertEquals("https://example.com/me.jpg", captor.getValue().getProfileImageUrl());
+        assertEquals(false, captor.getValue().isEmailVerified());
+        assertEquals(AccountStatus.PENDING_EMAIL_VERIFICATION, captor.getValue().getAccountStatus());
 
         ArgumentCaptor<SignUpRequest> signUpCaptor = ArgumentCaptor.forClass(SignUpRequest.class);
         verify(cognitoClient).signUp(signUpCaptor.capture());
@@ -96,6 +99,38 @@ class AuthServiceTest {
                 .collect(Collectors.toMap(AttributeType::name, AttributeType::value));
         assertEquals("chef@example.com", attributesByName.get("email"));
         assertEquals("chef", attributesByName.get("preferred_username"));
+    }
+
+
+    @Test
+    void registerShouldPersistConfirmedUsersAsActiveAndVerified() {
+        RegisterUserRequest request = new RegisterUserRequest();
+        request.setEmail("active@example.com");
+        request.setUserName("active-user");
+        request.setPassword("MyPassword123!");
+
+        when(idempotencyRepository.findByIdempotencyKey("idem-2")).thenReturn(Optional.empty());
+        when(idempotencyRepository.save(any(RegistrationIdempotencyRecord.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(userRepository.findByEmail("active@example.com")).thenReturn(Optional.empty());
+        when(cognitoClient.signUp(any(SignUpRequest.class))).thenReturn(SignUpResponse.builder()
+                .userSub("sub-active")
+                .userConfirmed(true)
+                .build());
+        when(userRepository.save(any())).thenAnswer(invocation -> {
+            com.chef.william.model.User user = invocation.getArgument(0);
+            user.setId(20L);
+            return user;
+        });
+
+        RegisterUserResponse response = authService.register(request, "idem-2");
+
+        assertEquals("CONFIRMED", response.getStatus());
+
+        ArgumentCaptor<com.chef.william.model.User> captor = ArgumentCaptor.forClass(com.chef.william.model.User.class);
+        verify(userRepository).save(captor.capture());
+        assertEquals(true, captor.getValue().isEmailVerified());
+        assertEquals(AccountStatus.ACTIVE, captor.getValue().getAccountStatus());
     }
 
     @Test

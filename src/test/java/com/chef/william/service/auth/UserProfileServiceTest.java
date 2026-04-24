@@ -2,6 +2,7 @@ package com.chef.william.service.auth;
 
 import com.chef.william.dto.auth.UpdateProfileRequest;
 import com.chef.william.dto.auth.UserProfileResponse;
+import com.chef.william.model.AccountStatus;
 import com.chef.william.model.User;
 import com.chef.william.repository.UserRepository;
 import org.junit.jupiter.api.Test;
@@ -13,6 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -36,6 +38,8 @@ class UserProfileServiceTest {
         user.setEmail("user@example.com");
         user.setUserName("old-name");
         user.setProfileImageUrl("https://example.com/old.png");
+        user.setEmailVerified(true);
+        user.setAccountStatus(AccountStatus.ACTIVE);
         user.setAllergies(List.of("Peanut"));
 
         UpdateProfileRequest request = new UpdateProfileRequest();
@@ -51,5 +55,7 @@ class UserProfileServiceTest {
         assertEquals("new-name", response.getUserName());
         assertEquals("https://example.com/new.png", response.getProfileImageUrl());
         assertEquals(List.of("Seafood"), response.getAllergies());
+        assertTrue(response.isEmailVerified());
+        assertEquals(AccountStatus.ACTIVE, response.getAccountStatus());
     }
 }
