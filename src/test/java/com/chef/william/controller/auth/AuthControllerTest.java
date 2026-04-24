@@ -2,6 +2,9 @@ package com.chef.william.controller.auth;
 
 import com.chef.william.dto.auth.RegisterUserRequest;
 import com.chef.william.dto.auth.RegisterUserResponse;
+import com.chef.william.dto.auth.VerifyEmailRequest;
+import com.chef.william.dto.auth.VerifyEmailResponse;
+import com.chef.william.model.AccountStatus;
 import com.chef.william.exception.DuplicateResourceException;
 import com.chef.william.exception.GlobalExceptionHandler;
 import com.chef.william.service.auth.AuthService;
@@ -68,6 +71,47 @@ class AuthControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.email").value("chef@example.com"))
                 .andExpect(jsonPath("$.cognitoSub").value("sub-1"));
+    }
+
+
+    @Test
+    void verifyEmailShouldReturnOkForValidPayload() throws Exception {
+        VerifyEmailResponse response = VerifyEmailResponse.builder()
+                .email("chef@example.com")
+                .emailVerified(true)
+                .accountStatus(AccountStatus.ACTIVE)
+                .status("CONFIRMED")
+                .build();
+
+        when(authService.verifyEmail(any(VerifyEmailRequest.class))).thenReturn(response);
+
+        mockMvc.perform(post("/api/auth/verify-email")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "chef@example.com",
+                                  "code": "123456"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.emailVerified").value(true))
+                .andExpect(jsonPath("$.accountStatus").value("ACTIVE"));
+    }
+
+    @Test
+    void verifyEmailShouldReturnValidationErrorForInvalidPayload() throws Exception {
+        mockMvc.perform(post("/api/auth/verify-email")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "not-an-email",
+                                  "code": ""
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.errors.email").exists())
+                .andExpect(jsonPath("$.errors.code").exists());
     }
 
     @Test
