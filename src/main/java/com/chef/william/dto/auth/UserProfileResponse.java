@@ -1,5 +1,6 @@
 package com.chef.william.dto.auth;
 
+import com.chef.william.model.AccountStatus;
 import com.chef.william.model.UserRole;
 import lombok.Builder;
 import lombok.Value;
@@ -15,5 +16,7 @@ public class UserProfileResponse {
     String userName;
     String profileImageUrl;
     UserRole role;
+    AccountStatus accountStatus;
+    boolean emailVerified;
     List<String> allergies;
 }

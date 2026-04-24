@@ -41,6 +41,8 @@ public class UserProfileService {
                 .userName(user.getUserName())
                 .profileImageUrl(user.getProfileImageUrl())
                 .role(user.getRole())
+                .accountStatus(user.getAccountStatus())
+                .emailVerified(user.isEmailVerified())
                 .allergies(user.getAllergies())
                 .build();
     }

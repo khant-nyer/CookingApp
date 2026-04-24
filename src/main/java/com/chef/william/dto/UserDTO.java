@@ -1,5 +1,6 @@
 package com.chef.william.dto;
 
+import com.chef.william.model.AccountStatus;
 import com.chef.william.model.UserRole;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -20,6 +21,8 @@ public class UserDTO {
 
     private String profileImageUrl;
     private UserRole role;
+    private AccountStatus accountStatus;
+    private boolean emailVerified;
     @Builder.Default
     private List<String> allergies = new ArrayList<>();
 
