@@ -6,6 +6,7 @@ import com.chef.william.dto.auth.RegisterUserResponse;
 import com.chef.william.exception.BusinessException;
 import com.chef.william.exception.DuplicateResourceException;
 import com.chef.william.exception.auth.CognitoRegistrationException;
+import com.chef.william.model.AccountStatus;
 import com.chef.william.model.User;
 import com.chef.william.model.auth.RegistrationIdempotencyRecord;
 import com.chef.william.model.auth.RegistrationIdempotencyStatus;
@@ -160,6 +161,9 @@ public class AuthService {
         user.setUserName(request.getUserName());
         user.setProfileImageUrl(request.getProfileImageUrl());
         user.setCognitoSub(signUpResponse.userSub());
+        boolean userConfirmed = signUpResponse.userConfirmed();
+        user.setEmailVerified(userConfirmed);
+        user.setAccountStatus(userConfirmed ? AccountStatus.ACTIVE : AccountStatus.PENDING_EMAIL_VERIFICATION);
 
         User saved;
         try {
@@ -176,7 +180,7 @@ public class AuthService {
                 .userName(saved.getUserName())
                 .profileImageUrl(saved.getProfileImageUrl())
                 .cognitoSub(saved.getCognitoSub())
-                .status(signUpResponse.userConfirmed() ? "CONFIRMED" : "PENDING_EMAIL_VERIFICATION")
+                .status(userConfirmed ? "CONFIRMED" : "PENDING_EMAIL_VERIFICATION")
                 .build();
     }
 
