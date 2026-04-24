@@ -35,6 +35,13 @@ public class User {
     @Column(nullable = false, length = 20)
     private UserRole role = UserRole.USER;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 40)
+    private AccountStatus accountStatus = AccountStatus.PENDING_EMAIL_VERIFICATION;
+
+    @Column(nullable = false)
+    private boolean emailVerified = false;
+
     @ElementCollection
     @CollectionTable(name = "user_allergies", joinColumns = @JoinColumn(name = "user_id"))
     @Column(name = "allergy", nullable = false, length = 120)
